@@ -33,6 +33,9 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
   final Map<int, bool> _expandedCategories = {};
   int? _highlightedReminderId;
   final Map<int, GlobalKey> _categoryKeys = {};
+  
+  // Day View States
+  bool _tasksExpanded = false;
 
   @override
   void initState() {
@@ -159,7 +162,6 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
           final dayItems = allItems.where((r) {
             if (r.dueDate == null) return false;
             if (r.isEvent && r.endDate != null) {
-              // Multi-day event logic
               final start = DateTime(r.dueDate!.year, r.dueDate!.month, r.dueDate!.day);
               final end = DateTime(r.endDate!.year, r.endDate!.month, r.endDate!.day);
               return (day.isAfter(start) || isSameDay(day, start)) && 
@@ -175,7 +177,6 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
             children: dayItems.take(4).map((t) {
               bool isStart = t.isEvent && t.endDate != null && isSameDay(day, t.dueDate!);
               bool isEnd = t.isEvent && t.endDate != null && isSameDay(day, t.endDate!);
-              bool isMid = t.isEvent && t.endDate != null && !isStart && !isEnd;
 
               return Container(
                 margin: EdgeInsets.only(
@@ -272,46 +273,92 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
             ],
           ),
         ),
-        // Tasks vs Events Sections
+        // Sections
         Expanded(
-          child: SingleChildScrollView(
-            controller: _timelineScrollController,
-            child: Column(
-              children: [
-                _buildCategorizedDayView(days, provider),
-                const Divider(height: 1, color: Colors.white24),
-                _buildTimelineGrid(days, provider, isWeek),
-              ],
-            ),
+          child: Column(
+            children: [
+              _buildTopSection(days, provider),
+              const Divider(height: 1, color: Colors.white24),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: _timelineScrollController,
+                  child: _buildTimelineGrid(days, provider, isWeek),
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _buildCategorizedDayView(List<DateTime> days, AppProvider provider) {
+  Widget _buildTopSection(List<DateTime> days, AppProvider provider) {
+    // Multi-day events and tasks
+    final allMultiDayEvents = days.expand((d) => provider.categories
+        .expand((c) => c.reminders)
+        .where((r) => r.reminder.isEvent && r.reminder.dueDate != null && r.reminder.endDate != null && 
+               r.reminder.endDate!.difference(r.reminder.dueDate!).inHours > 24)
+        .where((r) {
+          final start = DateTime(r.reminder.dueDate!.year, r.reminder.dueDate!.month, r.reminder.dueDate!.day);
+          final end = DateTime(r.reminder.endDate!.year, r.reminder.endDate!.month, r.reminder.endDate!.day);
+          return (d.isAfter(start) || isSameDay(d, start)) && (d.isBefore(end) || isSameDay(d, end));
+        })
+    ).toSet().toList();
+
+    final allTasks = days.expand((d) => provider.categories
+        .expand((c) => c.reminders)
+        .where((r) => !r.reminder.isEvent && r.reminder.dueDate != null && isSameDay(r.reminder.dueDate!, d))
+    ).toSet().toList();
+
     return Container(
       color: Colors.black12,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text("TASKS", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
-          ),
-          ...days.map((d) {
-            final tasks = provider.categories
-                .expand((c) => c.reminders)
-                .where((r) => !r.reminder.isEvent && r.reminder.dueDate != null && isSameDay(r.reminder.dueDate!, d))
-                .toList();
-            if (tasks.isEmpty) return const SizedBox.shrink();
-            return Padding(
-              padding: const EdgeInsets.only(left: 60),
-              child: Column(
-                children: tasks.map((t) => _buildCompactReminderTile(t)).toList(),
-              ),
-            );
-          }),
+          // Tidy Task List
+          if (allTasks.isNotEmpty)
+            Column(
+              children: [
+                ListTile(
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  title: Text("${allTasks.length} Tasks", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+                  trailing: Icon(_tasksExpanded ? Icons.expand_less : Icons.expand_more, size: 16),
+                  onTap: () => setState(() => _tasksExpanded = !_tasksExpanded),
+                ),
+                if (_tasksExpanded)
+                   ...allTasks.map((t) => Padding(
+                     padding: const EdgeInsets.only(left: 60),
+                     child: _buildCompactReminderTile(t),
+                   )),
+              ],
+            ),
+          
+          // Multi-day Events
+          if (allMultiDayEvents.isNotEmpty)
+            Row(
+              children: [
+                const SizedBox(width: 60, child: Center(child: Icon(Icons.event, size: 14, color: Color(0xFF80CBC4)))),
+                ...days.map((d) {
+                  final eventsForDay = allMultiDayEvents.where((r) {
+                    final start = DateTime(r.reminder.dueDate!.year, r.reminder.dueDate!.month, r.reminder.dueDate!.day);
+                    final end = DateTime(r.reminder.endDate!.year, r.reminder.endDate!.month, r.reminder.endDate!.day);
+                    return (d.isAfter(start) || isSameDay(d, start)) && (d.isBefore(end) || isSameDay(d, end));
+                  }).toList();
+
+                  return Expanded(
+                    child: Column(
+                      children: eventsForDay.map((e) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        width: double.infinity,
+                        decoration: BoxDecoration(color: const Color(0xFF80CBC4).withOpacity(0.8), borderRadius: BorderRadius.circular(4)),
+                        child: Text(e.reminder.title, style: const TextStyle(fontSize: 10, color: Colors.black, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      )).toList(),
+                    ),
+                  );
+                }),
+              ],
+            ),
         ],
       ),
     );
@@ -334,7 +381,6 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
           color: data.reminder.isCompleted ? Colors.grey : Colors.white,
         ),
       ),
-      subtitle: data.reminder.recurrence != 'none' ? Text("Recurrence: ${data.reminder.recurrence}", style: const TextStyle(fontSize: 10, color: Colors.blueAccent)) : null,
       onTap: () => _showReminderDetails(data),
     );
   }
@@ -386,12 +432,11 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
         .expand((c) => c.reminders)
         .where((r) => r.reminder.isEvent && r.reminder.dueDate != null)
         .where((r) {
-          final start = DateTime(r.reminder.dueDate!.year, r.reminder.dueDate!.month, r.reminder.dueDate!.day);
-          final end = r.reminder.endDate != null 
-              ? DateTime(r.reminder.endDate!.year, r.reminder.endDate!.month, r.reminder.endDate!.day)
-              : start;
-          return (day.isAfter(start) || isSameDay(day, start)) && 
-                 (day.isBefore(end) || isSameDay(day, end));
+          // Only show single-day events (duration <= 24h) on the grid
+          if (r.reminder.endDate != null && r.reminder.endDate!.difference(r.reminder.dueDate!).inHours > 24) {
+             return false;
+          }
+          return isSameDay(r.reminder.dueDate!, day);
         })
         .toList();
 
@@ -400,24 +445,8 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
       final start = r.dueDate!;
       final end = r.endDate ?? start.add(const Duration(hours: 1));
       
-      double top = 0;
-      double height = 60;
-
-      if (isSameDay(day, start)) {
-        top = (start.hour * 60.0) + (start.minute);
-        if (isSameDay(day, end)) {
-          height = end.difference(start).inMinutes.toDouble();
-        } else {
-          height = (24 * 60.0) - top;
-        }
-      } else if (isSameDay(day, end)) {
-        top = 0;
-        height = (end.hour * 60.0) + (end.minute);
-      } else {
-        // Full day in multi-day event
-        top = 0;
-        height = 24 * 60.0;
-      }
+      final top = (start.hour * 60.0) + (start.minute);
+      final height = end.difference(start).inMinutes.toDouble();
 
       return Positioned(
         top: top,
