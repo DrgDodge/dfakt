@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' as drift;
 import '../database/database.dart';
 import 'package:collection/collection.dart';
+import '../services/widget_service.dart';
 
 // UI Helpers to map Database classes to UI needs
 class ReminderWithSubs {
@@ -54,6 +55,7 @@ class AppProvider with ChangeNotifier {
     final today = DateTime(now.year, now.month, now.day);
     
     all.sort((a, b) {
+      if (a.dueDate == null || b.dueDate == null) return 0;
       final aDate = DateTime(a.dueDate!.year, a.dueDate!.month, a.dueDate!.day);
       final bDate = DateTime(b.dueDate!.year, b.dueDate!.month, b.dueDate!.day);
       
@@ -80,7 +82,10 @@ class AppProvider with ChangeNotifier {
         }
       }
     }
-    all.sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
+    all.sort((a, b) {
+      if (a.dueDate == null || b.dueDate == null) return 0;
+      return a.dueDate!.compareTo(b.dueDate!);
+    });
     return all;
   }
   
@@ -206,6 +211,7 @@ class AppProvider with ChangeNotifier {
     }
 
     await _loadUserGoal();
+    await WidgetService.updateWidget(urgentTasks);
     notifyListeners();
   }
 
@@ -255,12 +261,14 @@ class AppProvider with ChangeNotifier {
         orderIndex: drift.Value(nextOrder)
     ));
     await _loadCategories();
+    await WidgetService.updateWidget(urgentTasks);
     notifyListeners();
   }
 
   Future<void> updateCategory(Category category) async {
     await _db.updateCategory(category);
     await _loadCategories();
+    await WidgetService.updateWidget(urgentTasks);
     notifyListeners();
   }
 
@@ -280,12 +288,14 @@ class AppProvider with ChangeNotifier {
     
     // Refresh
     await _loadCategories();
+    await WidgetService.updateWidget(urgentTasks);
     notifyListeners();
   }
 
   Future<void> deleteCategory(int id) async {
     await _db.deleteCategory(id);
     await _loadCategories();
+    await WidgetService.updateWidget(urgentTasks);
     notifyListeners();
   }
 
@@ -308,6 +318,7 @@ class AppProvider with ChangeNotifier {
       recurrence: drift.Value(recurrence),
     ));
     await _loadCategories();
+    await WidgetService.updateWidget(urgentTasks);
     notifyListeners();
   }
 
@@ -318,6 +329,7 @@ class AppProvider with ChangeNotifier {
   Future<void> updateReminder(Reminder reminder) async {
     await _db.updateReminder(reminder);
     await _loadCategories();
+    await WidgetService.updateWidget(urgentTasks);
     notifyListeners();
   }
 
@@ -344,6 +356,7 @@ class AppProvider with ChangeNotifier {
     
     // Refresh
     await _loadCategories();
+    await WidgetService.updateWidget(urgentTasks);
     notifyListeners();
   }
 
@@ -388,6 +401,7 @@ class AppProvider with ChangeNotifier {
   Future<void> deleteReminder(int id) async {
     await _db.deleteReminder(id);
     await _loadCategories();
+    await WidgetService.updateWidget(urgentTasks);
     notifyListeners();
   }
 
@@ -398,6 +412,7 @@ class AppProvider with ChangeNotifier {
       imagePath: drift.Value(imagePath),
     ));
     await _loadCategories();
+    await WidgetService.updateWidget(urgentTasks);
     notifyListeners();
   }
 
@@ -421,6 +436,7 @@ class AppProvider with ChangeNotifier {
    Future<void> deleteSubReminder(int id) async {
     await _db.deleteSubReminder(id);
     await _loadCategories();
+    await WidgetService.updateWidget(urgentTasks);
     notifyListeners();
   }
 

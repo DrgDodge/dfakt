@@ -209,7 +209,8 @@ class DashboardScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final double itemWidth = (constraints.maxWidth - 48) / 7;
+            // Calculate item width: (total width - (6 spaces * 8px spacing)) / 7 items
+            final double itemWidth = ((constraints.maxWidth - 48) / 7).clamp(0.0, double.infinity);
             
             return Wrap(
               spacing: 8,
