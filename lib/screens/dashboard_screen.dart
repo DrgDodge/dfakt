@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/app_provider.dart';
+import '../database/database.dart';
 import 'settings_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -11,7 +12,6 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<AppProvider>(context);
-    final upcoming = provider.upcomingReminders.take(3).toList();
     final weightLogs = provider.weightLogs; // Sorted ASC
 
     return Scaffold(
@@ -186,11 +186,6 @@ class DashboardScreen extends StatelessWidget {
       ),
     );
   }
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildSectionHeader(String title) {
     return Padding(
@@ -199,10 +194,9 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildConsistencyCard(List<dynamic> logs) { // Dynamic to avoid specific type import issues if not needed, but logically WeightLog
+  Widget _buildConsistencyCard(List<dynamic> logs) {
     final now = DateTime.now();
     final daysInMonth = DateUtils.getDaysInMonth(now.year, now.month);
-    // Set of days with logs
     final loggedDays = logs
         .where((l) => l.date.year == now.year && l.date.month == now.month)
         .map((l) => l.date.day)
@@ -215,7 +209,6 @@ class DashboardScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            // Calculate item width: (total width - (6 spaces * 8px spacing)) / 7 items
             final double itemWidth = (constraints.maxWidth - 48) / 7;
             
             return Wrap(
@@ -245,8 +238,6 @@ class DashboardScreen extends StatelessWidget {
 
   Widget _buildMiniTrendCard(List<dynamic> logs) {
     if (logs.isEmpty) return const Card(child: Padding(padding: EdgeInsets.all(16), child: Text("No data")));
-    
-    // Take last 7 for mini trend
     final recent = logs.length > 10 ? logs.sublist(logs.length - 10) : logs;
 
     return Card(
@@ -266,7 +257,7 @@ class DashboardScreen extends StatelessWidget {
                     );
                   }).toList();
                 },
-                tooltipMargin: 50, // Show higher above finger
+                tooltipMargin: 50,
                 tooltipRoundedRadius: 8,
                 tooltipPadding: const EdgeInsets.all(8),
               ),
