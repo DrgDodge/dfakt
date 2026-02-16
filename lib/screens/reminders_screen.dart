@@ -902,7 +902,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
                 imagePath: drift.Value(pickedImagePath),
                 dueDate: drift.Value(start),
                 endDate: drift.Value(end),
-                recurrence: drift.Value(selectedRecurrence),
+                recurrence: selectedRecurrence,
               ));
               Navigator.pop(context);
             }
