@@ -33,15 +33,11 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
   final Map<int, bool> _expandedCategories = {};
   int? _highlightedReminderId;
   final Map<int, GlobalKey> _categoryKeys = {};
-  
-  // Day View States
-  bool _tasksExpanded = false;
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    // Scroll to 8:00 AM by default
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_timelineScrollController.hasClients) {
         _timelineScrollController.jumpTo(8 * 60.0);
@@ -85,12 +81,6 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
           duration: const Duration(milliseconds: 500),
           switchInCurve: Curves.easeInOutCubic,
           switchOutCurve: Curves.easeInOutCubic,
-          transitionBuilder: (Widget child, Animation<double> animation) {
-            if (child.key == const ValueKey(AgendaViewMode.day) || child.key == const ValueKey(AgendaViewMode.week)) {
-              return ScaleTransition(scale: animation, child: FadeTransition(opacity: animation, child: child));
-            }
-            return FadeTransition(opacity: animation, child: child);
-          },
           child: _buildBody(),
         ),
         floatingActionButton: FloatingActionButton(
@@ -172,36 +162,40 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
           
           if (dayItems.isEmpty) return null;
 
-          return Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: dayItems.take(4).map((t) {
-              bool isStart = t.isEvent && t.endDate != null && isSameDay(day, t.dueDate!);
-              bool isEnd = t.isEvent && t.endDate != null && isSameDay(day, t.endDate!);
+          return Positioned(
+            bottom: 4,
+            left: 0,
+            right: 0,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: dayItems.take(4).map((t) {
+                bool isStart = t.isEvent && t.endDate != null && isSameDay(day, t.dueDate!);
+                bool isEnd = t.isEvent && t.endDate != null && isSameDay(day, t.endDate!);
 
-              return Container(
-                margin: EdgeInsets.only(
-                  left: isStart || !t.isEvent ? 2 : 0,
-                  right: isEnd || !t.isEvent ? 2 : 0,
-                  top: 0.5,
-                  bottom: 0.5
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: (t.isEvent ? const Color(0xFF80CBC4) : Colors.blueAccent).withOpacity(0.8),
-                  borderRadius: BorderRadius.horizontal(
-                    left: isStart || !t.isEvent ? const Radius.circular(4) : Radius.zero,
-                    right: isEnd || !t.isEvent ? const Radius.circular(4) : Radius.zero,
+                return Container(
+                  margin: EdgeInsets.only(
+                    left: isStart || !t.isEvent ? 2 : 0,
+                    right: isEnd || !t.isEvent ? 2 : 0,
+                    top: 1, // Increased margin to prevent overlap
                   ),
-                ),
-                child: Text(
-                  isStart || !t.isEvent || day.weekday == 1 ? t.title : "",
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.black, fontSize: 8, fontWeight: FontWeight.bold),
-                ),
-              );
-            }).toList(),
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: (t.isEvent ? const Color(0xFF80CBC4) : Colors.blueAccent).withOpacity(0.8),
+                    borderRadius: BorderRadius.horizontal(
+                      left: isStart || !t.isEvent ? const Radius.circular(4) : Radius.zero,
+                      right: isEnd || !t.isEvent ? const Radius.circular(4) : Radius.zero,
+                    ),
+                  ),
+                  child: Text(
+                    isStart || !t.isEvent || day.weekday == 1 ? t.title : "",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.black, fontSize: 8, fontWeight: FontWeight.bold),
+                  ),
+                );
+              }).toList(),
+            ),
           );
         },
         todayBuilder: (context, day, focusedDay) => _buildDayCell(day, isToday: true),
@@ -277,7 +271,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
         Expanded(
           child: Column(
             children: [
-              _buildTopSection(days, provider),
+              _buildTopSection(days, provider, isWeek),
               const Divider(height: 1, color: Colors.white24),
               Expanded(
                 child: SingleChildScrollView(
@@ -292,8 +286,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
     );
   }
 
-  Widget _buildTopSection(List<DateTime> days, AppProvider provider) {
-    // Multi-day events and tasks
+  Widget _buildTopSection(List<DateTime> days, AppProvider provider, bool isWeek) {
     final allMultiDayEvents = days.expand((d) => provider.categories
         .expand((c) => c.reminders)
         .where((r) => r.reminder.isEvent && r.reminder.dueDate != null && r.reminder.endDate != null && 
@@ -314,74 +307,117 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
       color: Colors.black12,
       child: Column(
         children: [
-          // Tidy Task List
+          // Task Summary Button
           if (allTasks.isNotEmpty)
-            Column(
-              children: [
-                ListTile(
-                  dense: true,
-                  visualDensity: VisualDensity.compact,
-                  title: Text("${allTasks.length} Tasks", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
-                  trailing: Icon(_tasksExpanded ? Icons.expand_less : Icons.expand_more, size: 16),
-                  onTap: () => setState(() => _tasksExpanded = !_tasksExpanded),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Center(
+                child: ActionChip(
+                  avatar: const Icon(Icons.task_alt, size: 16, color: Colors.blueAccent),
+                  label: Text("${allTasks.length} Tasks for Today"),
+                  onPressed: () => _showDayTasksPopup(allTasks),
+                  backgroundColor: Colors.blueAccent.withOpacity(0.1),
                 ),
-                if (_tasksExpanded)
-                   ...allTasks.map((t) => Padding(
-                     padding: const EdgeInsets.only(left: 60),
-                     child: _buildCompactReminderTile(t),
-                   )),
-              ],
+              ),
             ),
           
-          // Multi-day Events
+          // Multi-day Events (Continuous labels for Weekly)
           if (allMultiDayEvents.isNotEmpty)
-            Row(
-              children: [
-                const SizedBox(width: 60, child: Center(child: Icon(Icons.event, size: 14, color: Color(0xFF80CBC4)))),
-                ...days.map((d) {
-                  final eventsForDay = allMultiDayEvents.where((r) {
-                    final start = DateTime(r.reminder.dueDate!.year, r.reminder.dueDate!.month, r.reminder.dueDate!.day);
-                    final end = DateTime(r.reminder.endDate!.year, r.reminder.endDate!.month, r.reminder.endDate!.day);
-                    return (d.isAfter(start) || isSameDay(d, start)) && (d.isBefore(end) || isSameDay(d, end));
-                  }).toList();
+            SizedBox(
+              width: double.infinity,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 60),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // Base height to push the grid down
+                    SizedBox(height: allMultiDayEvents.length * 26.0 + 4),
+                    ...allMultiDayEvents.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final rData = entry.value;
+                      final r = rData.reminder;
+                      
+                      if (!isWeek) {
+                        return Container(
+                          margin: EdgeInsets.only(top: i * 26.0 + 2, left: 2, right: 2),
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(color: const Color(0xFF80CBC4).withOpacity(0.8), borderRadius: BorderRadius.circular(4)),
+                          child: InkWell(
+                            onTap: () => _showEditReminderDialog(context, provider, r),
+                            child: Text(r.title, style: const TextStyle(fontSize: 10, color: Colors.black, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                          ),
+                        );
+                      }
 
-                  return Expanded(
-                    child: Column(
-                      children: eventsForDay.map((e) => Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                        width: double.infinity,
-                        decoration: BoxDecoration(color: const Color(0xFF80CBC4).withOpacity(0.8), borderRadius: BorderRadius.circular(4)),
-                        child: Text(e.reminder.title, style: const TextStyle(fontSize: 10, color: Colors.black, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      )).toList(),
-                    ),
-                  );
-                }),
-              ],
+                      // Weekly continuous logic
+                      final weekStart = days.first;
+                      final weekEnd = days.last;
+                      final eventStart = r.dueDate!;
+                      final eventEnd = r.endDate!;
+
+                      final start = eventStart.isBefore(weekStart) ? weekStart : eventStart;
+                      final end = eventEnd.isAfter(weekEnd) ? weekEnd : eventEnd;
+                      
+                      final startDayIndex = days.indexWhere((d) => isSameDay(d, start));
+                      final endDayIndex = days.indexWhere((d) => isSameDay(d, end));
+
+                      if (startDayIndex == -1 || endDayIndex == -1) return const SizedBox.shrink();
+
+                      return Positioned(
+                        top: i * 26.0 + 2,
+                        left: (startDayIndex / 7.0) * (MediaQuery.of(context).size.width - 60),
+                        width: ((endDayIndex - startDayIndex + 1) / 7.0) * (MediaQuery.of(context).size.width - 60),
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 1),
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF80CBC4).withOpacity(0.8),
+                            borderRadius: BorderRadius.horizontal(
+                              left: isSameDay(eventStart, start) ? const Radius.circular(4) : Radius.zero,
+                              right: isSameDay(eventEnd, end) ? const Radius.circular(4) : Radius.zero,
+                            ),
+                          ),
+                          child: InkWell(
+                            onTap: () => _showEditReminderDialog(context, provider, r),
+                            child: Text(r.title, style: const TextStyle(fontSize: 10, color: Colors.black, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
             ),
         ],
       ),
     );
   }
 
-  Widget _buildCompactReminderTile(ReminderWithSubs data) {
-    return ListTile(
-      dense: true,
-      visualDensity: VisualDensity.compact,
-      leading: Checkbox(
-        value: data.reminder.isCompleted,
-        onChanged: (val) => Provider.of<AppProvider>(context, listen: false).toggleReminderCompletion(data.reminder.id, val ?? false),
-        activeColor: Colors.blueAccent,
+  void _showDayTasksPopup(List<ReminderWithSubs> tasks) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text("Today's Tasks", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: tasks.length,
+              itemBuilder: (context, index) => _ReminderTile(
+                key: ValueKey("popup-${tasks[index].reminder.id}"),
+                categoryId: tasks[index].reminder.categoryId,
+                reminderData: tasks[index],
+              ),
+            ),
+          ),
+        ],
       ),
-      title: Text(
-        data.reminder.title,
-        style: TextStyle(
-          fontSize: 14,
-          decoration: data.reminder.isCompleted ? TextDecoration.lineThrough : null,
-          color: data.reminder.isCompleted ? Colors.grey : Colors.white,
-        ),
-      ),
-      onTap: () => _showReminderDetails(data),
     );
   }
 
@@ -432,7 +468,6 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
         .expand((c) => c.reminders)
         .where((r) => r.reminder.isEvent && r.reminder.dueDate != null)
         .where((r) {
-          // Only show single-day events (duration <= 24h) on the grid
           if (r.reminder.endDate != null && r.reminder.endDate!.difference(r.reminder.dueDate!).inHours > 24) {
              return false;
           }
@@ -456,7 +491,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () => _showReminderDetails(data),
+            onTap: () => _showEditReminderDialog(context, provider, r),
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
@@ -800,6 +835,82 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
       ),
     );
   }
+
+  void _showEditReminderDialog(BuildContext context, AppProvider provider, Reminder reminder) {
+    final titleController = TextEditingController(text: reminder.title);
+    String? pickedImagePath = reminder.imagePath;
+    DateTime startDate = reminder.dueDate ?? DateTime.now();
+    DateTime endDate = reminder.endDate ?? startDate.add(const Duration(hours: 1));
+    TimeOfDay startTime = TimeOfDay.fromDateTime(startDate);
+    TimeOfDay endTime = TimeOfDay.fromDateTime(endDate);
+    String selectedRecurrence = reminder.recurrence;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => StyledDialog(
+          title: reminder.isEvent ? 'Edit Event' : 'Edit Task',
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Title')),
+                const SizedBox(height: 16),
+                if (!reminder.isEvent)
+                   DropdownButton<String>(
+                    value: selectedRecurrence,
+                    isExpanded: true,
+                    dropdownColor: const Color(0xFF2C2C2C),
+                    items: ['none', 'daily', 'weekly', 'monthly'].map((r) => DropdownMenuItem(value: r, child: Text("Recurrence: $r"))).toList(),
+                    onChanged: (val) => setState(() => selectedRecurrence = val!),
+                  ),
+                const SizedBox(height: 16),
+                ListTile(
+                  title: Text(reminder.isEvent ? "Start Date" : "Date"),
+                  subtitle: Text(DateFormat.yMMMd().format(startDate)),
+                  onTap: () async {
+                    final picked = await showDatePicker(context: context, initialDate: startDate, firstDate: DateTime(2000), lastDate: DateTime(2100));
+                    if (picked != null) setState(() => startDate = picked);
+                  },
+                ),
+                if (reminder.isEvent) ...[
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text("Start Time:"), TextButton(onPressed: () async { final picked = await showTimePicker(context: context, initialTime: startTime); if (picked != null) setState(() => startTime = picked); }, child: Text(startTime.format(context)))]),
+                  ListTile(
+                    title: const Text("End Date"),
+                    subtitle: Text(DateFormat.yMMMd().format(endDate)),
+                    onTap: () async {
+                      final picked = await showDatePicker(context: context, initialDate: endDate, firstDate: DateTime(2000), lastDate: DateTime(2100));
+                      if (picked != null) setState(() => endDate = picked);
+                    },
+                  ),
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text("End Time:"), TextButton(onPressed: () async { final picked = await showTimePicker(context: context, initialTime: endTime); if (picked != null) setState(() => endTime = picked); }, child: Text(endTime.format(context)))]),
+                ],
+                const SizedBox(height: 10),
+                if (pickedImagePath != null) Stack(children: [SizedBox(height: 100, child: ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(File(pickedImagePath!)))), Positioned(right: 0, top: 0, child: IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => pickedImagePath = null)))]),
+                TextButton.icon(onPressed: () async { final picked = await ImagePicker().pickImage(source: ImageSource.gallery); if (picked != null) setState(() => pickedImagePath = picked.path); }, icon: const Icon(Icons.image, color: Color(0xFF80CBC4)), label: const Text('Change Image', style: TextStyle(color: Color(0xFF80CBC4))))
+              ],
+            ),
+          ),
+          onCancel: () => Navigator.pop(context),
+          onSave: () {
+            if (titleController.text.isNotEmpty) {
+              final start = DateTime(startDate.year, startDate.month, startDate.day, startTime.hour, startTime.minute);
+              final end = reminder.isEvent ? DateTime(endDate.year, endDate.month, endDate.day, endTime.hour, endTime.minute) : null;
+              
+              provider.updateReminder(reminder.copyWith(
+                title: titleController.text,
+                imagePath: drift.Value(pickedImagePath),
+                dueDate: drift.Value(start),
+                endDate: drift.Value(end),
+                recurrence: drift.Value(selectedRecurrence),
+              ));
+              Navigator.pop(context);
+            }
+          },
+        ),
+      ),
+    );
+  }
 }
 
 class _ReminderTile extends StatelessWidget {
@@ -827,7 +938,7 @@ class _ReminderTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(reminder.title, style: TextStyle(decoration: reminder.isCompleted ? TextDecoration.lineThrough : null, color: reminder.isCompleted ? Colors.grey : null, fontWeight: FontWeight.w500)),
-                  if (reminder.isEvent) Text("${DateFormat.Hm().format(reminder.dueDate!)} - ${DateFormat.Hm().format(reminder.endDate ?? reminder.dueDate!.add(const Duration(hours: 1)))}", style: TextStyle(fontSize: 12, color: theme.colorScheme.primary.withOpacity(0.7)))
+                  if (reminder.isEvent) Text("${DateFormat.yMMMd().format(reminder.dueDate!)} ${DateFormat.Hm().format(reminder.dueDate!)} - ${reminder.endDate != null ? DateFormat.yMMMd().format(reminder.endDate!) : ''} ${DateFormat.Hm().format(reminder.endDate ?? reminder.dueDate!.add(const Duration(hours: 1)))}", style: TextStyle(fontSize: 12, color: theme.colorScheme.primary.withOpacity(0.7)))
                   else if (reminder.dueDate != null) Text(DateFormat.yMMMd().format(reminder.dueDate!), style: TextStyle(fontSize: 12, color: theme.colorScheme.primary.withOpacity(0.7))),
                   if (reminder.recurrence != 'none') Text("Recurrence: ${reminder.recurrence}", style: const TextStyle(fontSize: 10, color: Color(0xFF80CBC4))),
                 ],
@@ -847,7 +958,18 @@ class _ReminderTile extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Checkbox(value: reminder.isCompleted, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)), activeColor: theme.colorScheme.primary, onChanged: (val) => provider.toggleReminderCompletion(reminder.id, val ?? false)),
-            PopupMenuButton<String>(icon: const Icon(Icons.more_vert, color: Colors.grey), onSelected: (value) { if (value == 'edit') _showEditReminderDialog(context, provider, reminder); else if (value == 'delete') provider.deleteReminder(reminder.id); }, itemBuilder: (context) => [const PopupMenuItem(value: 'edit', child: Text('Edit')), const PopupMenuItem(value: 'delete', child: Text('Delete'))]),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.grey),
+              onSelected: (value) {
+                if (value == 'edit') {
+                  final state = context.findAncestorStateOfType<_RemindersScreenState>();
+                  state?._showEditReminderDialog(context, provider, reminder);
+                } else if (value == 'delete') {
+                  provider.deleteReminder(reminder.id);
+                }
+              },
+              itemBuilder: (context) => [const PopupMenuItem(value: 'edit', child: Text('Edit')), const PopupMenuItem(value: 'delete', child: Text('Delete'))],
+            ),
           ],
         ),
         children: [
@@ -874,16 +996,39 @@ class _ReminderTile extends StatelessWidget {
     );
   }
 
-  void _showEditReminderDialog(BuildContext context, AppProvider provider, Reminder reminder) {
-    final controller = TextEditingController(text: reminder.title);
-    String? pickedImagePath = reminder.imagePath;
-    DateTime? selectedDate = reminder.dueDate;
-    showDialog(context: context, builder: (context) => StatefulBuilder(builder: (context, setState) => StyledDialog(title: 'Edit Reminder', content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: controller, decoration: const InputDecoration(labelText: 'Reminder Title')), const SizedBox(height: 16), Row(children: [Text(selectedDate == null ? 'No Date' : DateFormat.yMMMd().format(selectedDate!)), const Spacer(), TextButton(onPressed: () async { final picked = await showDatePicker(context: context, initialDate: selectedDate ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100)); if (picked != null) setState(() => selectedDate = picked); }, child: const Text('Change Date', style: TextStyle(color: Color(0xFF80CBC4))))]), const SizedBox(height: 10), if (pickedImagePath != null) Stack(children: [SizedBox(height: 100, child: ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(File(pickedImagePath!)))), Positioned(right: 0, top: 0, child: IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => pickedImagePath = null)))]), TextButton.icon(onPressed: () async { final picked = await ImagePicker().pickImage(source: ImageSource.gallery); if (picked != null) setState(() => pickedImagePath = picked.path); }, icon: const Icon(Icons.image, color: Color(0xFF80CBC4)), label: const Text('Change Image', style: TextStyle(color: Color(0xFF80CBC4))))])), onCancel: () => Navigator.pop(context), onSave: () { if (controller.text.isNotEmpty) { provider.updateReminder(reminder.copyWith(title: controller.text, imagePath: drift.Value(pickedImagePath), dueDate: drift.Value(selectedDate))); Navigator.pop(context); } })));
-  }
-
   void _showAddSubReminderDialog(BuildContext context, int reminderId) {
     final controller = TextEditingController();
     String? pickedImagePath;
-    showDialog(context: context, builder: (context) => StatefulBuilder(builder: (context, setState) => StyledDialog(title: 'Add Sub-task', content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: controller, decoration: const InputDecoration(labelText: 'Sub-task Title'), autofocus: true), const SizedBox(height: 10), if (pickedImagePath != null) SizedBox(height: 100, child: ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(File(pickedImagePath!)))), TextButton.icon(onPressed: () async { final picked = await ImagePicker().pickImage(source: ImageSource.gallery); if (picked != null) setState(() => pickedImagePath = picked.path); }, icon: const Icon(Icons.image, color: Color(0xFF80CBC4)), label: const Text('Add Image', style: TextStyle(color: Color(0xFF80CBC4))))]), onCancel: () => Navigator.pop(context), onSave: () { if (controller.text.isNotEmpty) { Provider.of<AppProvider>(context, listen: false).addSubReminder(reminderId, controller.text, imagePath: pickedImagePath); Navigator.pop(context); } })));
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => StyledDialog(
+          title: 'Add Sub-task',
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: controller, decoration: const InputDecoration(labelText: 'Sub-task Title'), autofocus: true),
+              const SizedBox(height: 10),
+              if (pickedImagePath != null) SizedBox(height: 100, child: ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(File(pickedImagePath!)))),
+              TextButton.icon(
+                onPressed: () async {
+                  final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+                  if (picked != null) setState(() => pickedImagePath = picked.path);
+                }, 
+                icon: const Icon(Icons.image, color: Color(0xFF80CBC4)), 
+                label: const Text('Add Image', style: TextStyle(color: Color(0xFF80CBC4)))
+              )
+            ],
+          ),
+          onCancel: () => Navigator.pop(context),
+          onSave: () {
+            if (controller.text.isNotEmpty) {
+              Provider.of<AppProvider>(context, listen: false).addSubReminder(reminderId, controller.text, imagePath: pickedImagePath);
+              Navigator.pop(context);
+            }
+          },
+        ),
+      ),
+    );
   }
 }
