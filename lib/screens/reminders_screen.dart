@@ -951,10 +951,11 @@ class _ReminderTile extends StatelessWidget {
     final reminder = reminderData.reminder;
     final theme = Theme.of(context);
     
-    return Container(
+    final isActivity = reminder.endDate != null;
+    
+    Widget tile = Container(
       decoration: BoxDecoration(color: isHighlighted ? const Color(0xFFFFF9C4).withOpacity(0.1) : null, borderRadius: BorderRadius.circular(12)),
       child: ExpansionTile(
-        onTap: onTap,
         controlAffinity: ListTileControlAffinity.leading,
         shape: const Border(),
         title: Row(
@@ -1021,6 +1022,15 @@ class _ReminderTile extends StatelessWidget {
         ],
       ),
     );
+
+    if (onTap != null) {
+      return GestureDetector(
+        onTap: onTap,
+        child: AbsorbPointer(child: tile),
+      );
+    }
+    return tile;
+  }
   }
 
   void _showAddSubReminderDialog(BuildContext context, int reminderId) {

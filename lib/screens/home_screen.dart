@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/app_provider.dart';
 import 'reminders_screen.dart';
 import 'fitness_screen.dart';
 import 'statistics_screen.dart';
