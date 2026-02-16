@@ -38,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.list_alt_rounded),
-            label: 'Reminders',
+            label: 'Calendar',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.fitness_center_rounded),

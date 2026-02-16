@@ -39,6 +39,37 @@ class AppProvider with ChangeNotifier {
   DateTime get selectedNutritionDate => _selectedNutritionDate;
   DateTime get selectedStatisticsDate => _selectedStatisticsDate;
 
+  // Urgent Tasks (Sorted by Overdue -> Today -> Soon)
+  List<Reminder> get urgentTasks {
+    List<Reminder> all = [];
+    for (var cat in _categories) {
+      for (var r in cat.reminders) {
+        if (!r.reminder.isCompleted && r.reminder.dueDate != null) {
+          all.add(r.reminder);
+        }
+      }
+    }
+    
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    all.sort((a, b) {
+      final aDate = DateTime(a.dueDate!.year, a.dueDate!.month, a.dueDate!.day);
+      final bDate = DateTime(b.dueDate!.year, b.dueDate!.month, b.dueDate!.day);
+      
+      // Overdue priority
+      bool aOverdue = aDate.isBefore(today);
+      bool bOverdue = bDate.isBefore(today);
+      if (aOverdue && !bOverdue) return -1;
+      if (!aOverdue && bOverdue) return 1;
+      
+      // Date comparison
+      return a.dueDate!.compareTo(b.dueDate!);
+    });
+    
+    return all;
+  }
+
   // Upcoming Reminders (All categories, incomplete, sorted by due date, limited to top 5?)
   List<Reminder> get upcomingReminders {
     List<Reminder> all = [];

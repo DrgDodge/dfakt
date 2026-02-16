@@ -77,23 +77,115 @@ class DashboardScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Upcoming Reminders
-            _buildSectionHeader("Upcoming Tasks"),
-            if (upcoming.isEmpty)
-              const Card(child: Padding(padding: EdgeInsets.all(16), child: Text("No upcoming tasks")))
-            else
+            // Priority Tasks
+            _buildSectionHeader("Priority Tasks"),
+            if (provider.urgentTasks.isEmpty)
               Card(
                 color: const Color(0xFF252525),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: Colors.white.withOpacity(0.05))),
-                child: Column(
-                  children: upcoming.map((r) => ListTile(
-                    leading: const Icon(Icons.circle_outlined, color: Color(0xFF80CBC4), size: 16),
-                    title: Text(r.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    trailing: Text(DateFormat.MMMd().format(r.dueDate!), style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                    onTap: () => provider.requestJumpToReminder(r.categoryId, r.id),
-                  )).toList(),
-                ),
+                child: const Padding(padding: EdgeInsets.all(20), child: Center(child: Text("All caught up!", style: TextStyle(color: Colors.grey)))),
+              )
+            else
+              Column(
+                children: provider.urgentTasks.take(5).map((task) => _buildUrgentTaskCard(context, task, provider)).toList(),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUrgentTaskCard(BuildContext context, Reminder task, AppProvider provider) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDate = DateTime(task.dueDate!.year, task.dueDate!.month, task.dueDate!.day);
+    
+    Color accentColor;
+    String urgencyLabel;
+    
+    if (dueDate.isBefore(today)) {
+      accentColor = Colors.redAccent;
+      urgencyLabel = "Overdue";
+    } else if (dueDate.isAtSameMomentAs(today)) {
+      accentColor = Colors.orangeAccent;
+      urgencyLabel = "Today";
+    } else if (dueDate.isAtSameMomentAs(today.add(const Duration(days: 1)))) {
+      accentColor = const Color(0xFF80CBC4);
+      urgencyLabel = "Tomorrow";
+    } else {
+      accentColor = Colors.blueAccent;
+      urgencyLabel = DateFormat.MMMd().format(dueDate);
+    }
+
+    return GestureDetector(
+      onTap: () => provider.requestJumpToReminder(task.categoryId, task.id),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF252525),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              height: 40,
+              decoration: BoxDecoration(
+                color: accentColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(task.isEvent ? Icons.event : Icons.task_alt, size: 12, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Text(
+                        task.isEvent ? "Event" : "Task",
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: accentColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: accentColor.withOpacity(0.2)),
+              ),
+              child: Text(
+                urgencyLabel,
+                style: TextStyle(color: accentColor, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
           ],
         ),
       ),
