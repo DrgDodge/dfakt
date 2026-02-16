@@ -90,6 +90,7 @@ class DashboardScreen extends StatelessWidget {
                     leading: const Icon(Icons.circle_outlined, color: Color(0xFF80CBC4), size: 16),
                     title: Text(r.title, style: const TextStyle(fontWeight: FontWeight.bold)),
                     trailing: Text(DateFormat.MMMd().format(r.dueDate!), style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    onTap: () => provider.requestJumpToReminder(r.categoryId, r.id),
                   )).toList(),
                 ),
               ),

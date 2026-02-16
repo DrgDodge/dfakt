@@ -12,8 +12,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
-
   static const List<Widget> _pages = <Widget>[
     DashboardScreen(),
     RemindersScreen(),
@@ -21,17 +19,13 @@ class _HomeScreenState extends State<HomeScreen> {
     StatisticsScreen(),
   ];
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
+    final provider = Provider.of<AppProvider>(context);
+
     return Scaffold(
       body: IndexedStack(
-        index: _selectedIndex,
+        index: provider.activeTab,
         children: _pages,
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -53,9 +47,9 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Stats',
           ),
         ],
-        currentIndex: _selectedIndex,
+        currentIndex: provider.activeTab,
         selectedItemColor: const Color(0xFF80CBC4),
-        onTap: _onItemTapped,
+        onTap: (index) => provider.setActiveTab(index),
       ),
     );
   }

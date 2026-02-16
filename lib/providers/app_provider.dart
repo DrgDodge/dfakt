@@ -136,6 +136,28 @@ class AppProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  int _activeTab = 0;
+  Map<String, int>? _pendingJumpRequest;
+
+  int get activeTab => _activeTab;
+  Map<String, int>? get pendingJumpRequest => _pendingJumpRequest;
+
+  void setActiveTab(int index) {
+    _activeTab = index;
+    notifyListeners();
+  }
+
+  void requestJumpToReminder(int categoryId, int reminderId) {
+    _pendingJumpRequest = {'categoryId': categoryId, 'reminderId': reminderId};
+    _activeTab = 1; // Switch to Reminders tab
+    notifyListeners();
+  }
+
+  void clearJumpRequest() {
+    _pendingJumpRequest = null;
+    notifyListeners();
+  }
+
   Future<void> loadData() async {
     await _loadCategories();
     await _loadGymLogs();

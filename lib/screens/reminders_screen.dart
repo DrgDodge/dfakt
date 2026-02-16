@@ -47,6 +47,16 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final provider = Provider.of<AppProvider>(context);
+    
+    if (provider.pendingJumpRequest != null) {
+      final req = provider.pendingJumpRequest!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _jumpToReminder(req['categoryId']!, req['reminderId']!);
+        provider.clearJumpRequest();
+      });
+    }
+
     return PopScope(
       canPop: _viewMode == AgendaViewMode.month,
       onPopInvokedWithResult: (didPop, result) {
@@ -326,7 +336,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
             SizedBox(
               width: double.infinity,
               child: Padding(
-                padding: const EdgeInsets.only(left: 60),
+                padding: EdgeInsets.only(left: isWeek ? 60 : 0),
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -340,11 +350,12 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
                       if (!isWeek) {
                         return Container(
                           margin: EdgeInsets.only(top: i * 26.0 + 2, left: 2, right: 2),
-                          padding: const EdgeInsets.all(4),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          width: double.infinity,
                           decoration: BoxDecoration(color: const Color(0xFF80CBC4).withOpacity(0.8), borderRadius: BorderRadius.circular(4)),
                           child: InkWell(
                             onTap: () => _showEditReminderDialog(context, provider, r),
-                            child: Text(r.title, style: const TextStyle(fontSize: 10, color: Colors.black, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                            child: Text(r.title, style: const TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
                           ),
                         );
                       }
@@ -413,6 +424,11 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
                 key: ValueKey("popup-${tasks[index].reminder.id}"),
                 categoryId: tasks[index].reminder.categoryId,
                 reminderData: tasks[index],
+                showMenu: false,
+                onTap: () {
+                  Navigator.pop(context);
+                  _jumpToReminder(tasks[index].reminder.categoryId, tasks[index].reminder.id);
+                },
               ),
             ),
           ),
@@ -917,8 +933,17 @@ class _ReminderTile extends StatelessWidget {
   final int categoryId;
   final ReminderWithSubs reminderData;
   final bool isHighlighted;
+  final bool showMenu;
+  final VoidCallback? onTap;
 
-  const _ReminderTile({required Key key, required this.categoryId, required this.reminderData, this.isHighlighted = false}) : super(key: key);
+  const _ReminderTile({
+    required Key key, 
+    required this.categoryId, 
+    required this.reminderData, 
+    this.isHighlighted = false,
+    this.showMenu = true,
+    this.onTap,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -929,6 +954,7 @@ class _ReminderTile extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(color: isHighlighted ? const Color(0xFFFFF9C4).withOpacity(0.1) : null, borderRadius: BorderRadius.circular(12)),
       child: ExpansionTile(
+        onTap: onTap,
         controlAffinity: ListTileControlAffinity.leading,
         shape: const Border(),
         title: Row(
@@ -958,18 +984,19 @@ class _ReminderTile extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Checkbox(value: reminder.isCompleted, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)), activeColor: theme.colorScheme.primary, onChanged: (val) => provider.toggleReminderCompletion(reminder.id, val ?? false)),
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, color: Colors.grey),
-              onSelected: (value) {
-                if (value == 'edit') {
-                  final state = context.findAncestorStateOfType<_RemindersScreenState>();
-                  state?._showEditReminderDialog(context, provider, reminder);
-                } else if (value == 'delete') {
-                  provider.deleteReminder(reminder.id);
-                }
-              },
-              itemBuilder: (context) => [const PopupMenuItem(value: 'edit', child: Text('Edit')), const PopupMenuItem(value: 'delete', child: Text('Delete'))],
-            ),
+            if (showMenu)
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: Colors.grey),
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    final state = context.findAncestorStateOfType<_RemindersScreenState>();
+                    state?._showEditReminderDialog(context, provider, reminder);
+                  } else if (value == 'delete') {
+                    provider.deleteReminder(reminder.id);
+                  }
+                },
+                itemBuilder: (context) => [const PopupMenuItem(value: 'edit', child: Text('Edit')), const PopupMenuItem(value: 'delete', child: Text('Delete'))],
+              ),
           ],
         ),
         children: [
