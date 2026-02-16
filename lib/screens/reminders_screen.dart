@@ -173,35 +173,43 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
           if (dayItems.isEmpty) return null;
 
           return Positioned(
-            bottom: 4,
             left: 0,
             right: 0,
+            bottom: 2,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: dayItems.take(4).map((t) {
                 bool isStart = t.isEvent && t.endDate != null && isSameDay(day, t.dueDate!);
                 bool isEnd = t.isEvent && t.endDate != null && isSameDay(day, t.endDate!);
+                bool isMultiDay = t.isEvent && t.endDate != null && !isSameDay(t.dueDate!, t.endDate!);
 
                 return Container(
                   margin: EdgeInsets.only(
-                    left: isStart || !t.isEvent ? 2 : 0,
-                    right: isEnd || !t.isEvent ? 2 : 0,
-                    top: 1, // Increased margin to prevent overlap
+                    left: (isMultiDay && !isStart) ? 0 : 2,
+                    right: (isMultiDay && !isEnd) ? 0 : 2,
+                    top: 2, // Increased spacing to prevent overlap
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: (t.isEvent ? const Color(0xFF80CBC4) : Colors.blueAccent).withOpacity(0.8),
-                    borderRadius: BorderRadius.horizontal(
-                      left: isStart || !t.isEvent ? const Radius.circular(4) : Radius.zero,
-                      right: isEnd || !t.isEvent ? const Radius.circular(4) : Radius.zero,
-                    ),
+                    color: (t.isEvent ? const Color(0xFF80CBC4) : Colors.blueAccent).withOpacity(0.85),
+                    borderRadius: isMultiDay 
+                      ? BorderRadius.horizontal(
+                          left: isStart ? const Radius.circular(6) : Radius.zero,
+                          right: isEnd ? const Radius.circular(6) : Radius.zero,
+                        )
+                      : BorderRadius.circular(6),
                   ),
                   child: Text(
-                    isStart || !t.isEvent || day.weekday == 1 ? t.title : "",
+                    isStart || !isMultiDay || day.weekday == 1 ? t.title : "",
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.black, fontSize: 8, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.black, 
+                      fontSize: 8, 
+                      fontWeight: FontWeight.bold,
+                      height: 1.1,
+                    ),
                   ),
                 );
               }).toList(),
@@ -1030,7 +1038,6 @@ class _ReminderTile extends StatelessWidget {
       );
     }
     return tile;
-  }
   }
 
   void _showAddSubReminderDialog(BuildContext context, int reminderId) {
