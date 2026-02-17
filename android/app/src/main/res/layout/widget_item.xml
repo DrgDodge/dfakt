@@ -5,11 +5,12 @@
     android:orientation="horizontal"
     android:padding="8dp">
 
-    <View
+    <ImageView
         android:id="@+id/task_indicator"
         android:layout_width="3dp"
         android:layout_height="match_parent"
-        android:background="#80CBC4"/>
+        android:src="@android:color/white"
+        android:scaleType="fitXY"/>
 
     <LinearLayout
         android:layout_width="0dp"

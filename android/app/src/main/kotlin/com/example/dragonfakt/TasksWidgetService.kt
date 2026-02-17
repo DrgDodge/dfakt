@@ -57,7 +57,7 @@ class TasksRemoteViewsFactory(private val context: Context) : RemoteViewsService
             
             // Using Color.parseColor for safer color handling
             val color = if (isEvent) Color.parseColor("#80CBC4") else Color.parseColor("#448AFF")
-            views.setInt(R.id.task_indicator, "setBackgroundColor", color)
+            views.setInt(R.id.task_indicator, "setColorFilter", color)
 
             return views
         } catch (e: Exception) {
