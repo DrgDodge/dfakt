@@ -33,6 +33,56 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
   final Map<int, bool> _expandedCategories = {};
   int? _highlightedReminderId;
 
+  final List<Color> _colorPalette = const [
+    Color(0xFF80CBC4), // Default Teal
+    Color(0xFF448AFF), // Blue
+    Color(0xFFEF5350), // Red
+    Color(0xFFFFA726), // Orange
+    Color(0xFF66BB6A), // Green
+    Color(0xFFAB47BC), // Purple
+    Color(0xFFEC407A), // Pink
+  ];
+
+  Widget _buildColorPicker(int? selectedColor, Function(int) onColorSelected) {
+    return SizedBox(
+      height: 80,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.hardEdge,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: _colorPalette.map((color) {
+            final isSelected = (selectedColor ?? _colorPalette[0].value) == color.value;
+            return GestureDetector(
+              onTap: () => onColorSelected(color.value),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                margin: const EdgeInsets.symmetric(horizontal: 8),
+                width: isSelected ? 42 : 32,
+                height: isSelected ? 42 : 32,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: isSelected ? Border.all(color: Colors.white, width: 2.5) : null,
+                  boxShadow: [
+                    BoxShadow(
+                      color: isSelected ? color.withOpacity(0.6) : Colors.transparent,
+                      blurRadius: isSelected ? 10 : 0,
+                      spreadRadius: isSelected ? 1 : 0,
+                    )
+                  ],
+                ),
+                child: isSelected ? const Icon(Icons.check, size: 20, color: Colors.white) : null,
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -51,7 +101,11 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
     if (provider.pendingJumpRequest != null) {
       final req = provider.pendingJumpRequest!;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _jumpToReminder(req['categoryId']!, req['reminderId']!);
+        if (req['categoryId'] == -1) {
+          setState(() => _viewMode = AgendaViewMode.list);
+        } else {
+          _jumpToReminder(req['categoryId']!, req['reminderId']!);
+        }
         provider.clearJumpRequest();
       });
     }
@@ -134,10 +188,51 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
     }
   }
 
+  Map<int, int> _calculateEventLanes(List<Reminder> events) {
+    final sortedEvents = List<Reminder>.from(events);
+    sortedEvents.sort((a, b) {
+      if (a.dueDate == null || b.dueDate == null) return 0;
+      int startComp = a.dueDate!.compareTo(b.dueDate!);
+      if (startComp != 0) return startComp;
+      if (a.endDate == null || b.endDate == null) return 0;
+      return b.endDate!.difference(b.dueDate!).compareTo(a.endDate!.difference(a.dueDate!));
+    });
+
+    final Map<int, int> lanes = {};
+    final List<DateTime> laneAvailability = [];
+
+    for (var event in sortedEvents) {
+      if (event.dueDate == null || event.endDate == null) continue;
+      
+      // Normalize to end of day to ensure no overlap on same day
+      final eventEnd = DateTime(event.endDate!.year, event.endDate!.month, event.endDate!.day);
+      
+      int assignedLane = -1;
+      for (int i = 0; i < laneAvailability.length; i++) {
+        // If lane became free strictly before this event starts
+        if (laneAvailability[i].isBefore(event.dueDate!)) {
+          assignedLane = i;
+          laneAvailability[i] = eventEnd;
+          break;
+        }
+      }
+      
+      if (assignedLane == -1) {
+        assignedLane = laneAvailability.length;
+        laneAvailability.add(eventEnd);
+      }
+      
+      lanes[event.id] = assignedLane;
+    }
+    return lanes;
+  }
+
   // --- MONTHLY VIEW ---
   Widget _buildMonthlyView({required Key key}) {
     final provider = Provider.of<AppProvider>(context);
-    final allItems = provider.categories.expand((c) => c.reminders.map((r) => r.reminder)).toList();
+    final allReminders = provider.categories.expand((c) => c.reminders.map((r) => r.reminder)).toList();
+    final allEvents = allReminders.where((r) => r.isEvent && r.dueDate != null && r.endDate != null).toList();
+    final eventLanes = _calculateEventLanes(allEvents);
 
     return TableCalendar(
       key: key,
@@ -158,7 +253,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
       onPageChanged: (focusedDay) => setState(() => _focusedDay = focusedDay),
       calendarBuilders: CalendarBuilders(
         markerBuilder: (context, day, events) {
-          final dayItems = allItems.where((r) {
+          final dayReminders = allReminders.where((r) {
             if (r.dueDate == null) return false;
             if (r.isEvent && r.endDate != null) {
               final start = DateTime(r.dueDate!.year, r.dueDate!.month, r.dueDate!.day);
@@ -169,56 +264,100 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
             return isSameDay(r.dueDate!, day);
           }).toList();
           
-                    if (dayItems.isEmpty) return null;
+          if (dayReminders.isEmpty) return null;
+
+          final dayTasks = dayReminders.where((r) => !r.isEvent).toList();
+          final dayEvents = dayReminders.where((r) => r.isEvent && eventLanes.containsKey(r.id)).toList();
+
+          int maxLane = -1;
+          if (dayEvents.isNotEmpty) {
+             maxLane = dayEvents.map((e) => eventLanes[e.id]!).reduce((a, b) => a > b ? a : b);
+          }
           
-                    return Stack(
-                      children: [
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 2,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: dayItems.take(4).map((t) {
-                              bool isStart = t.isEvent && t.endDate != null && isSameDay(day, t.dueDate!);
-                              bool isEnd = t.isEvent && t.endDate != null && isSameDay(day, t.endDate!);
-                              bool isMultiDay = t.isEvent && t.endDate != null && !isSameDay(t.dueDate!, t.endDate!);
-          
-                              return Container(
-                                margin: EdgeInsets.only(
-                                  left: (isMultiDay && !isStart) ? 0 : 2,
-                                  right: (isMultiDay && !isEnd) ? 0 : 2,
-                                  top: 2, // Increased spacing to prevent overlap
-                                ),
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  color: (t.isEvent ? const Color(0xFF80CBC4) : Colors.blueAccent).withOpacity(0.85),
-                                  borderRadius: isMultiDay 
-                                    ? BorderRadius.horizontal(
-                                        left: isStart ? const Radius.circular(6) : Radius.zero,
-                                        right: isEnd ? const Radius.circular(6) : Radius.zero,
-                                      )
-                                    : BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  isStart || !isMultiDay || day.weekday == 1 ? t.title : "",
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.black, 
-                                    fontSize: 8, 
-                                    fontWeight: FontWeight.bold,
-                                    height: 1.1,
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
+          final int maxRows = 3;
+
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              // Events at Top
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 26,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(maxLane + 1, (laneIndex) {
+                    if (laneIndex >= maxRows) return const SizedBox.shrink();
+
+                    final event = dayEvents.firstWhereOrNull((e) => eventLanes[e.id] == laneIndex);
+                    
+                    if (event == null) {
+                      return const SizedBox(height: 15.5); // Placeholder
+                    }
+
+                    bool isStart = isSameDay(day, event.dueDate!);
+                    bool isEnd = isSameDay(day, event.endDate!);
+                    bool isMultiDay = !isSameDay(event.dueDate!, event.endDate!);
+
+                    return Container(
+                      height: 14,
+                      margin: EdgeInsets.only(
+                        left: (isMultiDay && !isStart) ? 0 : 2,
+                        right: (isMultiDay && !isEnd) ? 0 : 2,
+                        bottom: 1.5,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      alignment: Alignment.centerLeft,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Color(event.color ?? 0xFF80CBC4).withOpacity(0.9),
+                        borderRadius: isMultiDay 
+                          ? BorderRadius.horizontal(
+                              left: isStart ? const Radius.circular(4) : Radius.zero,
+                              right: isEnd ? const Radius.circular(4) : Radius.zero,
+                            )
+                          : BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        isStart || !isMultiDay || day.weekday == 1 ? event.title : "",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.black, 
+                          fontSize: 9, 
+                          fontWeight: FontWeight.w800,
+                          height: 1.1,
                         ),
-                      ],
+                      ),
                     );
-                  },        todayBuilder: (context, day, focusedDay) => _buildDayCell(day, isToday: true),
+                  }),
+                ),
+              ),
+              // Tasks at Bottom
+              Positioned(
+                left: 4,
+                right: 4,
+                bottom: 4,
+                child: Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  alignment: WrapAlignment.center,
+                  children: dayTasks.take(5).map((t) {
+                    return Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: Color(t.color ?? 0xFF448AFF),
+                        shape: BoxShape.circle,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          );
+        },
+        todayBuilder: (context, day, focusedDay) => _buildDayCell(day, isToday: true),
         defaultBuilder: (context, day, focusedDay) => _buildDayCell(day),
         selectedBuilder: (context, day, focusedDay) => _buildDayCell(day, isSelected: true),
       ),
@@ -253,16 +392,26 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
 
   // --- TIMELINE VIEW ---
   Widget _buildTimelineView({required bool isWeek, required Key key}) {
-    final provider = Provider.of<AppProvider>(context);
-    final days = isWeek 
-      ? List.generate(7, (i) {
-          final firstDayOfWeek = _focusedDay.subtract(Duration(days: _focusedDay.weekday - 1));
-          return firstDayOfWeek.add(Duration(days: i));
-        })
-      : [_focusedDay];
-
-    return Column(
+    return _TimelinePageView(
       key: key,
+      isWeek: isWeek,
+      focusedDay: _focusedDay,
+      onDateChanged: (date) => setState(() => _focusedDay = date),
+      pageBuilder: (context, date) {
+        final days = isWeek 
+          ? List.generate(7, (i) {
+              final firstDayOfWeek = date.subtract(Duration(days: date.weekday - 1));
+              return firstDayOfWeek.add(Duration(days: i));
+            })
+          : [date];
+        return _buildTimelinePageContent(days, isWeek);
+      },
+    );
+  }
+
+  Widget _buildTimelinePageContent(List<DateTime> days, bool isWeek) {
+    final provider = Provider.of<AppProvider>(context);
+    return Column(
       children: [
         // Days Header
         Container(
@@ -362,7 +511,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
                           margin: EdgeInsets.only(top: i * 26.0 + 2, left: 2, right: 2),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           width: double.infinity,
-                          decoration: BoxDecoration(color: const Color(0xFF80CBC4).withOpacity(0.8), borderRadius: BorderRadius.circular(4)),
+                          decoration: BoxDecoration(color: Color(r.color ?? 0xFF80CBC4).withOpacity(0.8), borderRadius: BorderRadius.circular(4)),
                           child: InkWell(
                             onTap: () => _showEditReminderDialog(context, provider, r),
                             child: Text(r.title, style: const TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
@@ -392,7 +541,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
                           margin: const EdgeInsets.symmetric(horizontal: 1),
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF80CBC4).withOpacity(0.8),
+                            color: Color(r.color ?? 0xFF80CBC4).withOpacity(0.8),
                             borderRadius: BorderRadius.horizontal(
                               left: isSameDay(eventStart, start) ? const Radius.circular(4) : Radius.zero,
                               right: isSameDay(eventEnd, end) ? const Radius.circular(4) : Radius.zero,
@@ -431,7 +580,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
             child: ListView.builder(
               itemCount: tasks.length,
               itemBuilder: (context, index) => _ReminderTile(
-                key: ValueKey("popup-${tasks[index].reminder.id}"),
+                key: ValueKey("popup-rem-${tasks[index].reminder.id}"),
                 categoryId: tasks[index].reminder.categoryId,
                 reminderData: tasks[index],
                 showMenu: false,
@@ -521,7 +670,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: const Color(0xFF80CBC4).withOpacity(0.9),
+                color: Color(r.color ?? 0xFF80CBC4).withOpacity(0.9),
                 borderRadius: BorderRadius.circular(6),
                 boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4, offset: const Offset(0, 2))],
               ),
@@ -559,7 +708,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
               children: [
                 Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
                 _ReminderTile(
-                  key: ValueKey("details-${data.reminder.id}"),
+                  key: ValueKey("details-rem-${data.reminder.id}"),
                   categoryId: data.reminder.categoryId,
                   reminderData: data,
                 ),
@@ -581,6 +730,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
       children: [
         Expanded(
           child: ReorderableListView.builder(
+            key: const ValueKey("outer-categories-list"),
             scrollController: _listScrollController,
             itemCount: provider.categories.length,
             onReorder: (oldIndex, newIndex) => provider.reorderCategories(oldIndex, newIndex),
@@ -590,7 +740,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
               final isExpanded = _expandedCategories[category.id] ?? false;
 
               return Card(
-                key: ValueKey(category.id),
+                key: ValueKey("cat-${category.id}"),
                 margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: Column(
@@ -634,6 +784,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
                             const Padding(padding: EdgeInsets.all(16.0), child: Text("No items", style: TextStyle(color: Colors.grey)))
                           else
                             ReorderableListView.builder(
+                                key: ValueKey("inner-list-${category.id}"),
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: categoryData.reminders.length,
@@ -641,7 +792,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
                                 itemBuilder: (context, rIndex) {
                                    final reminderData = categoryData.reminders[rIndex];
                                    return _ReminderTile(
-                                      key: ValueKey(reminderData.reminder.id),
+                                      key: ValueKey("rem-${reminderData.reminder.id}"),
                                       categoryId: category.id,
                                       reminderData: reminderData,
                                       isHighlighted: _highlightedReminderId == reminderData.reminder.id,
@@ -768,6 +919,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
     DateTime? selectedDate = _selectedDay;
     String selectedRecurrence = 'none';
     int? selectedCategoryId = categoryId ?? (provider.categories.isNotEmpty ? provider.categories.first.category.id : null);
+    int selectedColor = _colorPalette[0].value;
 
     showDialog(
       context: context,
@@ -781,6 +933,8 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
                 if (provider.categories.isEmpty) const Text("Please add a category first.") else ...[
                   DropdownButton<int>(value: selectedCategoryId, isExpanded: true, dropdownColor: const Color(0xFF2C2C2C), items: provider.categories.map((c) => DropdownMenuItem(value: c.category.id, child: Text(c.category.name))).toList(), onChanged: (val) => setState(() => selectedCategoryId = val)),
                   TextField(controller: controller, decoration: const InputDecoration(labelText: 'Task Title'), autofocus: true),
+                  const SizedBox(height: 16),
+                  _buildColorPicker(selectedColor, (val) => setState(() => selectedColor = val)),
                   const SizedBox(height: 16),
                   DropdownButton<String>(
                     value: selectedRecurrence,
@@ -798,7 +952,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
             ),
           ),
           onCancel: () => Navigator.pop(context),
-          onSave: () { if (controller.text.isNotEmpty && selectedCategoryId != null) { provider.addReminder(selectedCategoryId!, controller.text, imagePath: pickedImagePath, dueDate: selectedDate, recurrence: selectedRecurrence); Navigator.pop(context); } },
+          onSave: () { if (controller.text.isNotEmpty && selectedCategoryId != null) { provider.addReminder(selectedCategoryId!, controller.text, imagePath: pickedImagePath, dueDate: selectedDate, recurrence: selectedRecurrence, color: selectedColor); Navigator.pop(context); } },
         ),
       ),
     );
@@ -812,6 +966,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
     TimeOfDay startTime = TimeOfDay.fromDateTime(startDate);
     TimeOfDay endTime = TimeOfDay.fromDateTime(endDate);
     int? selectedCategoryId = provider.categories.isNotEmpty ? provider.categories.first.category.id : null;
+    int selectedColor = _colorPalette[0].value;
 
     showDialog(
       context: context,
@@ -825,6 +980,8 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
                 if (provider.categories.isEmpty) const Text("Please add a category first.") else ...[
                   DropdownButton<int>(value: selectedCategoryId, isExpanded: true, dropdownColor: const Color(0xFF2C2C2C), items: provider.categories.map((c) => DropdownMenuItem(value: c.category.id, child: Text(c.category.name))).toList(), onChanged: (val) => setState(() => selectedCategoryId = val)),
                   TextField(controller: titleController, decoration: const InputDecoration(labelText: "Event Name")),
+                  const SizedBox(height: 16),
+                  _buildColorPicker(selectedColor, (val) => setState(() => selectedColor = val)),
                   const SizedBox(height: 16),
                   ListTile(
                     title: const Text("Start Date"),
@@ -853,7 +1010,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
             if (titleController.text.isNotEmpty && selectedCategoryId != null) { 
               final start = DateTime(startDate.year, startDate.month, startDate.day, startTime.hour, startTime.minute);
               final end = DateTime(endDate.year, endDate.month, endDate.day, endTime.hour, endTime.minute);
-              provider.addEvent(selectedCategoryId!, titleController.text, start, end); 
+              provider.addEvent(selectedCategoryId!, titleController.text, start, end, color: selectedColor); 
               Navigator.pop(context); 
             } 
           },
@@ -870,6 +1027,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
     TimeOfDay startTime = TimeOfDay.fromDateTime(startDate);
     TimeOfDay endTime = TimeOfDay.fromDateTime(endDate);
     String selectedRecurrence = reminder.recurrence;
+    int selectedColor = reminder.color ?? _colorPalette[0].value;
 
     showDialog(
       context: context,
@@ -890,6 +1048,8 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
                     items: ['none', 'daily', 'weekly', 'monthly'].map((r) => DropdownMenuItem(value: r, child: Text("Recurrence: $r"))).toList(),
                     onChanged: (val) => setState(() => selectedRecurrence = val!),
                   ),
+                const SizedBox(height: 16),
+                _buildColorPicker(selectedColor, (val) => setState(() => selectedColor = val)),
                 const SizedBox(height: 16),
                 ListTile(
                   title: Text(reminder.isEvent ? "Start Date" : "Date"),
@@ -929,6 +1089,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
                 dueDate: drift.Value(start),
                 endDate: drift.Value(end),
                 recurrence: selectedRecurrence,
+                color: drift.Value(selectedColor),
               ));
               Navigator.pop(context);
             }
@@ -1075,6 +1236,64 @@ class _ReminderTile extends StatelessWidget {
           },
         ),
       ),
+    );
+  }
+}
+
+class _TimelinePageView extends StatefulWidget {
+  final bool isWeek;
+  final DateTime focusedDay;
+  final Function(DateTime) onDateChanged;
+  final Widget Function(BuildContext, DateTime) pageBuilder;
+
+  const _TimelinePageView({
+    super.key,
+    required this.isWeek,
+    required this.focusedDay,
+    required this.onDateChanged,
+    required this.pageBuilder,
+  });
+
+  @override
+  State<_TimelinePageView> createState() => _TimelinePageViewState();
+}
+
+class _TimelinePageViewState extends State<_TimelinePageView> {
+  late PageController _pageController;
+  final int _initialPage = 10000;
+  late DateTime _baseDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _initialPage);
+    _baseDate = widget.focusedDay;
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PageView.builder(
+      controller: _pageController,
+      onPageChanged: (index) {
+        final offset = index - _initialPage;
+        final newDate = widget.isWeek 
+            ? _baseDate.add(Duration(days: offset * 7))
+            : _baseDate.add(Duration(days: offset));
+        widget.onDateChanged(newDate);
+      },
+      itemBuilder: (context, index) {
+        final offset = index - _initialPage;
+        final date = widget.isWeek 
+            ? _baseDate.add(Duration(days: offset * 7))
+            : _baseDate.add(Duration(days: offset));
+        return widget.pageBuilder(context, date);
+      },
     );
   }
 }

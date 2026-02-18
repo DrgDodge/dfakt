@@ -45,7 +45,7 @@ class AppProvider with ChangeNotifier {
     List<Reminder> all = [];
     for (var cat in _categories) {
       for (var r in cat.reminders) {
-        if (!r.reminder.isCompleted && r.reminder.dueDate != null) {
+        if (!r.reminder.isCompleted && r.reminder.dueDate != null && !r.reminder.isEvent) {
           all.add(r.reminder);
         }
       }
@@ -89,6 +89,24 @@ class AppProvider with ChangeNotifier {
     return all;
   }
   
+  // Upcoming Events (Sorted by date)
+  List<Reminder> get upcomingEvents {
+    List<Reminder> all = [];
+    for (var cat in _categories) {
+      for (var r in cat.reminders) {
+        if (!r.reminder.isCompleted && r.reminder.isEvent && r.reminder.dueDate != null) {
+          all.add(r.reminder);
+        }
+      }
+    }
+    all.sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
+    return all;
+  }
+  
+  Future<void> _updateWidgets() async {
+    await WidgetService.updateWidget(urgentTasks, upcomingEvents);
+  }
+
   // Exercise History
   List<GymLogWithExercise> getHistoryForExercise(String exerciseName) {
     return _gymLogs.where((l) => l.exercise.name == exerciseName).toList()
@@ -189,6 +207,12 @@ class AppProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void requestJumpToCategories() {
+    _activeTab = 1; // Reminders Tab
+    _pendingJumpRequest = {'categoryId': -1, 'reminderId': -1}; // Special code for just list view
+    notifyListeners();
+  }
+
   void clearJumpRequest() {
     _pendingJumpRequest = null;
     notifyListeners();
@@ -211,7 +235,7 @@ class AppProvider with ChangeNotifier {
     }
 
     await _loadUserGoal();
-    await WidgetService.updateWidget(urgentTasks);
+    await _updateWidgets();
     notifyListeners();
   }
 
@@ -261,14 +285,14 @@ class AppProvider with ChangeNotifier {
         orderIndex: drift.Value(nextOrder)
     ));
     await _loadCategories();
-    await WidgetService.updateWidget(urgentTasks);
+    await _updateWidgets();
     notifyListeners();
   }
 
   Future<void> updateCategory(Category category) async {
     await _db.updateCategory(category);
     await _loadCategories();
-    await WidgetService.updateWidget(urgentTasks);
+    await _updateWidgets();
     notifyListeners();
   }
 
@@ -288,18 +312,18 @@ class AppProvider with ChangeNotifier {
     
     // Refresh
     await _loadCategories();
-    await WidgetService.updateWidget(urgentTasks);
+    await _updateWidgets();
     notifyListeners();
   }
 
   Future<void> deleteCategory(int id) async {
     await _db.deleteCategory(id);
     await _loadCategories();
-    await WidgetService.updateWidget(urgentTasks);
+    await _updateWidgets();
     notifyListeners();
   }
 
-  Future<void> addReminder(int categoryId, String title, {String? imagePath, DateTime? dueDate, DateTime? endDate, bool isEvent = false, String recurrence = 'none'}) async {
+  Future<void> addReminder(int categoryId, String title, {String? imagePath, DateTime? dueDate, DateTime? endDate, bool isEvent = false, String recurrence = 'none', int? color}) async {
     // Find current max order index for this category to append at the end
     int nextOrder = 0;
     final category = _categories.firstWhereOrNull((c) => c.category.id == categoryId);
@@ -316,20 +340,21 @@ class AppProvider with ChangeNotifier {
       endDate: drift.Value(endDate),
       isEvent: drift.Value(isEvent),
       recurrence: drift.Value(recurrence),
+      color: drift.Value(color),
     ));
     await _loadCategories();
-    await WidgetService.updateWidget(urgentTasks);
+    await _updateWidgets();
     notifyListeners();
   }
 
-  Future<void> addEvent(int categoryId, String title, DateTime start, DateTime end, {String recurrence = 'none'}) async {
-    await addReminder(categoryId, title, dueDate: start, endDate: end, isEvent: true, recurrence: recurrence);
+  Future<void> addEvent(int categoryId, String title, DateTime start, DateTime end, {String recurrence = 'none', int? color}) async {
+    await addReminder(categoryId, title, dueDate: start, endDate: end, isEvent: true, recurrence: recurrence, color: color);
   }
 
   Future<void> updateReminder(Reminder reminder) async {
     await _db.updateReminder(reminder);
     await _loadCategories();
-    await WidgetService.updateWidget(urgentTasks);
+    await _updateWidgets();
     notifyListeners();
   }
 
@@ -356,7 +381,7 @@ class AppProvider with ChangeNotifier {
     
     // Refresh
     await _loadCategories();
-    await WidgetService.updateWidget(urgentTasks);
+    await _updateWidgets();
     notifyListeners();
   }
 
@@ -401,7 +426,7 @@ class AppProvider with ChangeNotifier {
   Future<void> deleteReminder(int id) async {
     await _db.deleteReminder(id);
     await _loadCategories();
-    await WidgetService.updateWidget(urgentTasks);
+    await _updateWidgets();
     notifyListeners();
   }
 
@@ -412,7 +437,7 @@ class AppProvider with ChangeNotifier {
       imagePath: drift.Value(imagePath),
     ));
     await _loadCategories();
-    await WidgetService.updateWidget(urgentTasks);
+    await _updateWidgets();
     notifyListeners();
   }
 
@@ -436,7 +461,7 @@ class AppProvider with ChangeNotifier {
    Future<void> deleteSubReminder(int id) async {
     await _db.deleteSubReminder(id);
     await _loadCategories();
-    await WidgetService.updateWidget(urgentTasks);
+    await _updateWidgets();
     notifyListeners();
   }
 

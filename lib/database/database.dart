@@ -22,6 +22,7 @@ class Reminders extends Table {
   DateTimeColumn get endDate => dateTime().nullable()();
   BoolColumn get isEvent => boolean().withDefault(const Constant(false))();
   TextColumn get recurrence => text().withDefault(const Constant('none'))();
+  IntColumn get color => integer().nullable()();
 }
 
 class SubReminders extends Table {
@@ -86,7 +87,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(connect());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -117,6 +118,9 @@ class AppDatabase extends _$AppDatabase {
       if (from < 7) {
         await m.addColumn(reminders, reminders.isEvent);
         await m.addColumn(reminders, reminders.recurrence);
+      }
+      if (from < 8) {
+        await m.addColumn(reminders, reminders.color);
       }
     },
   );

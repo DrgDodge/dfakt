@@ -10,62 +10,58 @@ import org.json.JSONArray
 import org.json.JSONObject
 import android.graphics.Color
 
-class TasksWidgetService : RemoteViewsService() {
+class EventsWidgetService : RemoteViewsService() {
     override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
-        return TasksRemoteViewsFactory(this.applicationContext)
+        return EventsRemoteViewsFactory(this.applicationContext)
     }
 }
 
-class TasksRemoteViewsFactory(private val context: Context) : RemoteViewsService.RemoteViewsFactory {
-    private var tasks: List<JSONObject> = listOf()
+class EventsRemoteViewsFactory(private val context: Context) : RemoteViewsService.RemoteViewsFactory {
+    private var events: List<JSONObject> = listOf()
 
     override fun onCreate() {}
 
     override fun onDataSetChanged() {
         try {
             val widgetData = HomeWidgetPlugin.getData(context)
-            val jsonString = widgetData.getString("tasks_json", "[]") ?: "[]"
+            val jsonString = widgetData.getString("events_json", "[]") ?: "[]"
             val jsonArray = JSONArray(jsonString)
             
-            val tempTasks = mutableListOf<JSONObject>()
+            val tempEvents = mutableListOf<JSONObject>()
             for (i in 0 until jsonArray.length()) {
-                tempTasks.add(jsonArray.getJSONObject(i))
+                tempEvents.add(jsonArray.getJSONObject(i))
             }
-            tasks = tempTasks
+            events = tempEvents
         } catch (e: Exception) {
-            tasks = listOf()
+            events = listOf()
         }
     }
 
     override fun onDestroy() {
-        tasks = listOf()
+        events = listOf()
     }
 
-    override fun getCount(): Int = tasks.size
+    override fun getCount(): Int = events.size
 
     override fun getViewAt(position: Int): RemoteViews? {
-        if (position < 0 || position >= tasks.size) return null
+        if (position < 0 || position >= events.size) return null
 
         try {
-            val task = tasks[position]
+            val event = events[position]
             val views = RemoteViews(context.packageName, R.layout.widget_item)
             
-            views.setTextViewText(R.id.task_title, task.optString("title", ""))
-            views.setTextViewText(R.id.task_date, task.optString("date", ""))
+            views.setTextViewText(R.id.task_title, event.optString("title", ""))
+            views.setTextViewText(R.id.task_date, event.optString("date", ""))
             
-            val isEventStr = task.optString("isEvent", "false")
-            val isEvent = isEventStr.toBoolean()
-            
-            // Get color from JSON, default to blue
-            val colorStr = task.optString("color", "4282664575") // 0xFF448AFF as Int string
-            // Parse long because color int can be large unsigned
-            val colorInt = colorStr.toLongOrNull()?.toInt() ?: Color.parseColor("#448AFF")
+            // Get color from JSON, default to teal
+            val colorStr = event.optString("color", "4286611396") // 0xFF80CBC4
+            val colorInt = colorStr.toLongOrNull()?.toInt() ?: Color.parseColor("#80CBC4")
             
             views.setInt(R.id.task_indicator, "setColorFilter", colorInt)
 
             // Fill-in Intent for click
             val fillInIntent = Intent()
-            fillInIntent.data = Uri.parse("dragonfakt://task?categoryId=${task.optInt("categoryId")}&reminderId=${task.optInt("id")}")
+            fillInIntent.data = Uri.parse("dragonfakt://task?categoryId=${event.optInt("categoryId")}&reminderId=${event.optInt("id")}")
             views.setOnClickFillInIntent(R.id.widget_item_root, fillInIntent)
 
             return views

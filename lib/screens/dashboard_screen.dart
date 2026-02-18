@@ -156,15 +156,9 @@ class DashboardScreen extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(task.isEvent ? Icons.event : Icons.task_alt, size: 12, color: Colors.grey),
-                      const SizedBox(width: 4),
-                      Text(
-                        task.isEvent ? "Event" : "Task",
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
+                  Text(
+                     "Due: ${DateFormat.MMMd().format(dueDate)}",
+                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
               ),

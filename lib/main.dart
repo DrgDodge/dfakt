@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:home_widget/home_widget.dart';
 import 'providers/app_provider.dart';
 import 'screens/home_screen.dart';
 
@@ -17,12 +18,46 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AppProvider()..loadData()),
       ],
-      child: MaterialApp(
+      child: const MaterialAppWithTheme(),
+    );
+  }
+}
+
+class MaterialAppWithTheme extends StatefulWidget {
+  const MaterialAppWithTheme({super.key});
+
+  @override
+  State<MaterialAppWithTheme> createState() => _MaterialAppWithThemeState();
+}
+
+class _MaterialAppWithThemeState extends State<MaterialAppWithTheme> {
+   @override
+  void initState() {
+    super.initState();
+    HomeWidget.initiallyLaunchedFromHomeWidget().then(_handleLaunch);
+    HomeWidget.widgetClicked.listen(_handleLaunch);
+  }
+
+  void _handleLaunch(Uri? uri) {
+    if (uri == null) return;
+    if (uri.host == 'categories') {
+       Provider.of<AppProvider>(context, listen: false).requestJumpToCategories();
+    } else if (uri.host == 'task') {
+       final catId = int.tryParse(uri.queryParameters['categoryId'] ?? '');
+       final remId = int.tryParse(uri.queryParameters['reminderId'] ?? '');
+       if (catId != null && remId != null) {
+          Provider.of<AppProvider>(context, listen: false).requestJumpToReminder(catId, remId);
+       }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
         title: 'DFakt',
         theme: _buildTheme(),
         home: const HomeScreen(),
-      ),
-    );
+      );
   }
 
   ThemeData _buildTheme() {

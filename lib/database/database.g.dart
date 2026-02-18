@@ -380,6 +380,15 @@ class $RemindersTable extends Reminders
     requiredDuringInsert: false,
     defaultValue: const Constant('none'),
   );
+  static const VerificationMeta _colorMeta = const VerificationMeta('color');
+  @override
+  late final GeneratedColumn<int> color = GeneratedColumn<int>(
+    'color',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -392,6 +401,7 @@ class $RemindersTable extends Reminders
     endDate,
     isEvent,
     recurrence,
+    color,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -469,6 +479,12 @@ class $RemindersTable extends Reminders
         recurrence.isAcceptableOrUnknown(data['recurrence']!, _recurrenceMeta),
       );
     }
+    if (data.containsKey('color')) {
+      context.handle(
+        _colorMeta,
+        color.isAcceptableOrUnknown(data['color']!, _colorMeta),
+      );
+    }
     return context;
   }
 
@@ -518,6 +534,10 @@ class $RemindersTable extends Reminders
         DriftSqlType.string,
         data['${effectivePrefix}recurrence'],
       )!,
+      color: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}color'],
+      ),
     );
   }
 
@@ -538,6 +558,7 @@ class Reminder extends DataClass implements Insertable<Reminder> {
   final DateTime? endDate;
   final bool isEvent;
   final String recurrence;
+  final int? color;
   const Reminder({
     required this.id,
     required this.title,
@@ -549,6 +570,7 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     this.endDate,
     required this.isEvent,
     required this.recurrence,
+    this.color,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -569,6 +591,9 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     }
     map['is_event'] = Variable<bool>(isEvent);
     map['recurrence'] = Variable<String>(recurrence);
+    if (!nullToAbsent || color != null) {
+      map['color'] = Variable<int>(color);
+    }
     return map;
   }
 
@@ -590,6 +615,9 @@ class Reminder extends DataClass implements Insertable<Reminder> {
           : Value(endDate),
       isEvent: Value(isEvent),
       recurrence: Value(recurrence),
+      color: color == null && nullToAbsent
+          ? const Value.absent()
+          : Value(color),
     );
   }
 
@@ -609,6 +637,7 @@ class Reminder extends DataClass implements Insertable<Reminder> {
       endDate: serializer.fromJson<DateTime?>(json['endDate']),
       isEvent: serializer.fromJson<bool>(json['isEvent']),
       recurrence: serializer.fromJson<String>(json['recurrence']),
+      color: serializer.fromJson<int?>(json['color']),
     );
   }
   @override
@@ -625,6 +654,7 @@ class Reminder extends DataClass implements Insertable<Reminder> {
       'endDate': serializer.toJson<DateTime?>(endDate),
       'isEvent': serializer.toJson<bool>(isEvent),
       'recurrence': serializer.toJson<String>(recurrence),
+      'color': serializer.toJson<int?>(color),
     };
   }
 
@@ -639,6 +669,7 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     Value<DateTime?> endDate = const Value.absent(),
     bool? isEvent,
     String? recurrence,
+    Value<int?> color = const Value.absent(),
   }) => Reminder(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -650,6 +681,7 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     endDate: endDate.present ? endDate.value : this.endDate,
     isEvent: isEvent ?? this.isEvent,
     recurrence: recurrence ?? this.recurrence,
+    color: color.present ? color.value : this.color,
   );
   Reminder copyWithCompanion(RemindersCompanion data) {
     return Reminder(
@@ -671,6 +703,7 @@ class Reminder extends DataClass implements Insertable<Reminder> {
       recurrence: data.recurrence.present
           ? data.recurrence.value
           : this.recurrence,
+      color: data.color.present ? data.color.value : this.color,
     );
   }
 
@@ -686,7 +719,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
           ..write('dueDate: $dueDate, ')
           ..write('endDate: $endDate, ')
           ..write('isEvent: $isEvent, ')
-          ..write('recurrence: $recurrence')
+          ..write('recurrence: $recurrence, ')
+          ..write('color: $color')
           ..write(')'))
         .toString();
   }
@@ -703,6 +737,7 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     endDate,
     isEvent,
     recurrence,
+    color,
   );
   @override
   bool operator ==(Object other) =>
@@ -717,7 +752,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
           other.dueDate == this.dueDate &&
           other.endDate == this.endDate &&
           other.isEvent == this.isEvent &&
-          other.recurrence == this.recurrence);
+          other.recurrence == this.recurrence &&
+          other.color == this.color);
 }
 
 class RemindersCompanion extends UpdateCompanion<Reminder> {
@@ -731,6 +767,7 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
   final Value<DateTime?> endDate;
   final Value<bool> isEvent;
   final Value<String> recurrence;
+  final Value<int?> color;
   const RemindersCompanion({
     this.id = const Value.absent(),
     this.title = const Value.absent(),
@@ -742,6 +779,7 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     this.endDate = const Value.absent(),
     this.isEvent = const Value.absent(),
     this.recurrence = const Value.absent(),
+    this.color = const Value.absent(),
   });
   RemindersCompanion.insert({
     this.id = const Value.absent(),
@@ -754,6 +792,7 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     this.endDate = const Value.absent(),
     this.isEvent = const Value.absent(),
     this.recurrence = const Value.absent(),
+    this.color = const Value.absent(),
   }) : title = Value(title),
        categoryId = Value(categoryId);
   static Insertable<Reminder> custom({
@@ -767,6 +806,7 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     Expression<DateTime>? endDate,
     Expression<bool>? isEvent,
     Expression<String>? recurrence,
+    Expression<int>? color,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -779,6 +819,7 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
       if (endDate != null) 'end_date': endDate,
       if (isEvent != null) 'is_event': isEvent,
       if (recurrence != null) 'recurrence': recurrence,
+      if (color != null) 'color': color,
     });
   }
 
@@ -793,6 +834,7 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     Value<DateTime?>? endDate,
     Value<bool>? isEvent,
     Value<String>? recurrence,
+    Value<int?>? color,
   }) {
     return RemindersCompanion(
       id: id ?? this.id,
@@ -805,6 +847,7 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
       endDate: endDate ?? this.endDate,
       isEvent: isEvent ?? this.isEvent,
       recurrence: recurrence ?? this.recurrence,
+      color: color ?? this.color,
     );
   }
 
@@ -841,6 +884,9 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     if (recurrence.present) {
       map['recurrence'] = Variable<String>(recurrence.value);
     }
+    if (color.present) {
+      map['color'] = Variable<int>(color.value);
+    }
     return map;
   }
 
@@ -856,7 +902,8 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
           ..write('dueDate: $dueDate, ')
           ..write('endDate: $endDate, ')
           ..write('isEvent: $isEvent, ')
-          ..write('recurrence: $recurrence')
+          ..write('recurrence: $recurrence, ')
+          ..write('color: $color')
           ..write(')'))
         .toString();
   }
@@ -3075,6 +3122,7 @@ typedef $$RemindersTableCreateCompanionBuilder =
       Value<DateTime?> endDate,
       Value<bool> isEvent,
       Value<String> recurrence,
+      Value<int?> color,
     });
 typedef $$RemindersTableUpdateCompanionBuilder =
     RemindersCompanion Function({
@@ -3088,6 +3136,7 @@ typedef $$RemindersTableUpdateCompanionBuilder =
       Value<DateTime?> endDate,
       Value<bool> isEvent,
       Value<String> recurrence,
+      Value<int?> color,
     });
 
 final class $$RemindersTableReferences
@@ -3186,6 +3235,11 @@ class $$RemindersTableFilterComposer
 
   ColumnFilters<String> get recurrence => $composableBuilder(
     column: $table.recurrence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get color => $composableBuilder(
+    column: $table.color,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3292,6 +3346,11 @@ class $$RemindersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get color => $composableBuilder(
+    column: $table.color,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$CategoriesTableOrderingComposer get categoryId {
     final $$CategoriesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -3357,6 +3416,9 @@ class $$RemindersTableAnnotationComposer
     column: $table.recurrence,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get color =>
+      $composableBuilder(column: $table.color, builder: (column) => column);
 
   $$CategoriesTableAnnotationComposer get categoryId {
     final $$CategoriesTableAnnotationComposer composer = $composerBuilder(
@@ -3445,6 +3507,7 @@ class $$RemindersTableTableManager
                 Value<DateTime?> endDate = const Value.absent(),
                 Value<bool> isEvent = const Value.absent(),
                 Value<String> recurrence = const Value.absent(),
+                Value<int?> color = const Value.absent(),
               }) => RemindersCompanion(
                 id: id,
                 title: title,
@@ -3456,6 +3519,7 @@ class $$RemindersTableTableManager
                 endDate: endDate,
                 isEvent: isEvent,
                 recurrence: recurrence,
+                color: color,
               ),
           createCompanionCallback:
               ({
@@ -3469,6 +3533,7 @@ class $$RemindersTableTableManager
                 Value<DateTime?> endDate = const Value.absent(),
                 Value<bool> isEvent = const Value.absent(),
                 Value<String> recurrence = const Value.absent(),
+                Value<int?> color = const Value.absent(),
               }) => RemindersCompanion.insert(
                 id: id,
                 title: title,
@@ -3480,6 +3545,7 @@ class $$RemindersTableTableManager
                 endDate: endDate,
                 isEvent: isEvent,
                 recurrence: recurrence,
+                color: color,
               ),
           withReferenceMapper: (p0) => p0
               .map(
