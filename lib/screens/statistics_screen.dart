@@ -1,10 +1,12 @@
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../providers/app_provider.dart';
-import '../database/database.dart'; // For WeightLog type
+import '../database/database.dart';
 import 'settings_screen.dart';
 
 class StatisticsScreen extends StatefulWidget {
@@ -15,15 +17,11 @@ class StatisticsScreen extends StatefulWidget {
 }
 
 class _StatisticsScreenState extends State<StatisticsScreen> {
-  // Metric Selection: 0 = Weight, 1 = Body Fat, 2 = Muscle Mass
   final Set<int> selectedMetrics = {0}; 
-  
-  // Time Range: 0=1W, 1=1M, 2=3M, 3=6M, 4=1Y, 5=All
-  int selectedTimeRange = 1; // Default 1M for General
-  int selectedWorkoutTimeRange = 1; // Default 1M for Workout
-
-  // For Workout Progress
+  int selectedTimeRange = 1; 
+  int selectedWorkoutTimeRange = 1; 
   String? selectedExercise;
+  final PageController _pageController = PageController();
 
   @override
   Widget build(BuildContext context) {
@@ -40,10 +38,43 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           )
         ],
       ),
-      body: PageView(
+      body: Column(
         children: [
-          _buildGeneralStats(context),
-          _buildWorkoutStats(context),
+          Expanded(
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(
+                dragDevices: {
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.mouse,
+                },
+              ),
+              child: PageView(
+                controller: _pageController,
+                children: [
+                  _buildGeneralStats(context),
+                  _buildWorkoutStats(context),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: SmoothPageIndicator(
+              controller: _pageController,
+              count: 2,
+              effect: const WormEffect(
+                activeDotColor: Color(0xFF80CBC4),
+                dotColor: Colors.grey,
+                dotHeight: 8,
+                dotWidth: 8,
+              ),
+              onDotClicked: (index) => _pageController.animateToPage(
+                index,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -51,8 +82,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   Widget _buildGeneralStats(BuildContext context) {
     final provider = Provider.of<AppProvider>(context);
-    
-    // --- Filter Data based on Time Range ---
     final now = DateTime.now();
     DateTime? startDate;
     switch (selectedTimeRange) {
@@ -64,21 +93,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       case 5: startDate = null; break;
     }
 
-    // Weight Logs
     List<WeightLog> filteredWeightLogs = provider.weightLogs;
     if (startDate != null) {
       filteredWeightLogs = filteredWeightLogs.where((l) => l.date.isAfter(startDate!)).toList();
     }
-    // Ensure sorted by date
     filteredWeightLogs.sort((a, b) => a.date.compareTo(b.date));
 
-    // Nutrition Logs
     List<NutritionLog> filteredNutritionLogs = provider.nutritionLogs;
     if (startDate != null) {
       filteredNutritionLogs = filteredNutritionLogs.where((l) => l.date.isAfter(startDate!)).toList();
     }
 
-    // --- Calculate Averages ---
     double avgWeight = 0;
     double avgFat = 0;
     double avgMuscle = 0;
@@ -95,7 +120,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     double avgProtein = 0;
     double avgCarbs = 0;
     if (filteredNutritionLogs.isNotEmpty) {
-      // Group by day to get daily totals
       final logsByDay = groupBy(filteredNutritionLogs, (log) => DateFormat('yyyy-MM-dd').format(log.date));
       final dailyTotals = logsByDay.values.map((dayLogs) => {
         'calories': dayLogs.map((e) => e.calories).sum,
@@ -103,12 +127,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         'carbs': dayLogs.map((e) => e.carbs).sum,
       }).toList();
 
-      avgCals = dailyTotals.map((e) => e['calories']!).average;
-      avgProtein = dailyTotals.map((e) => e['protein']!).average;
-      avgCarbs = dailyTotals.map((e) => e['carbs']!).average;
+      if (dailyTotals.isNotEmpty) {
+        avgCals = dailyTotals.map((e) => e['calories']!).average;
+        avgProtein = dailyTotals.map((e) => e['protein']!).average;
+        avgCarbs = dailyTotals.map((e) => e['carbs']!).average;
+      }
     }
 
-    // --- Normalization Logic ---
     double minW = 0, maxW = 100;
     double minF = 0, maxF = 100;
     double minM = 0, maxM = 100;
@@ -147,22 +172,36 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Time Range Toggle
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildTimeToggle(0, "1W", false),
-                _buildTimeToggle(1, "1M", false),
-                _buildTimeToggle(2, "3M", false),
-                _buildTimeToggle(3, "6M", false),
-                _buildTimeToggle(4, "1Y", false),
-                _buildTimeToggle(5, "All", false),
-              ],
-            ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth > 600) {
+                 return Row(
+                   children: [
+                     Expanded(child: _buildTimeToggle(0, "1W", false, true)),
+                     Expanded(child: _buildTimeToggle(1, "1M", false, true)),
+                     Expanded(child: _buildTimeToggle(2, "3M", false, true)),
+                     Expanded(child: _buildTimeToggle(3, "6M", false, true)),
+                     Expanded(child: _buildTimeToggle(4, "1Y", false, true)),
+                     Expanded(child: _buildTimeToggle(5, "All", false, true)),
+                   ],
+                 );
+              }
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildTimeToggle(0, "1W", false, false),
+                    _buildTimeToggle(1, "1M", false, false),
+                    _buildTimeToggle(2, "3M", false, false),
+                    _buildTimeToggle(3, "6M", false, false),
+                    _buildTimeToggle(4, "1Y", false, false),
+                    _buildTimeToggle(5, "All", false, false),
+                  ],
+                ),
+              );
+            }
           ),
           const SizedBox(height: 16),
-          // Body Composition Chart with Averages inside
           _buildChartCard(
             title: "Body Composition Trends",
             child: Column(
@@ -193,7 +232,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                                if (index >= 0 && index < filteredWeightLogs.length) {
                                   final log = filteredWeightLogs[index];
                                   String text = "";
-                                  // Map barIndex back to metric type based on selectedMetrics order
                                   List<int> orderedMetrics = [];
                                   if (selectedMetrics.contains(0)) orderedMetrics.add(0);
                                   if (selectedMetrics.contains(1)) orderedMetrics.add(1);
@@ -241,7 +279,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                             },
                           ),
                         ),
-                        // Hide left titles if normalized (mixed units)
                         leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: !useNormalization, reservedSize: 35)),
                         topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                         rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -278,12 +315,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           
           const SizedBox(height: 20),
           
-          // Calories & Macros Section
           _buildChartCard(
             title: "Average Daily Intake",
             child: Column(
               children: [
-                // Protein Bar
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -305,7 +340,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   ]
                 ),
                 const SizedBox(height: 12),
-                // Carbs Bar
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -327,7 +361,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   ]
                 ),
                 const SizedBox(height: 20),
-                // Calories Bar
                  Column(
                    crossAxisAlignment: CrossAxisAlignment.start,
                    children: [
@@ -353,71 +386,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               ],
             )
           ),
-          
-          // Swipe Hint
-          const Center(
-             child: Padding(
-               padding: EdgeInsets.all(16.0),
-               child: Icon(Icons.more_horiz, color: Colors.grey),
-             ),
-          )
         ],
-      ),
-    );
-  }
-
-  Widget _buildMiniStat(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-        Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
-      ],
-    );
-  }
-
-  LineChartBarData _buildLine(List<WeightLog> logs, double? Function(WeightLog) mapper, Color color) {
-    return LineChartBarData(
-      spots: logs.asMap().entries.map((e) {
-        final val = mapper(e.value);
-        return val != null ? FlSpot(e.key.toDouble(), val) : null;
-      }).nonNulls.cast<FlSpot>().toList(),
-      isCurved: true,
-      color: color,
-      barWidth: 3,
-      isStrokeCapRound: true,
-      dotData: const FlDotData(show: true),
-      belowBarData: BarAreaData(
-        show: true,
-        gradient: LinearGradient(
-          colors: [color.withOpacity(0.3), color.withOpacity(0.0)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTimeToggle(int index, String label, bool isWorkout) {
-    final selected = isWorkout ? selectedWorkoutTimeRange : selectedTimeRange;
-    final isSelected = selected == index;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8.0),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: isSelected,
-        onSelected: (val) {
-          setState(() {
-            if (isWorkout) {
-              selectedWorkoutTimeRange = index;
-            } else {
-              selectedTimeRange = index;
-            }
-          });
-        },
-        selectedColor: const Color(0xFF80CBC4),
-        labelStyle: TextStyle(color: isSelected ? Colors.black : Colors.white),
-        backgroundColor: const Color(0xFF2C2C2C),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide.none),
       ),
     );
   }
@@ -433,7 +402,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
      List<Map<String, dynamic>> progressData = provider.getWorkoutProgress(exerciseName: selectedExercise);
 
-     // Filter by Time Range
      final now = DateTime.now();
      DateTime? startDate;
      switch (selectedWorkoutTimeRange) {
@@ -449,7 +417,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
        progressData = progressData.where((l) => (l['date'] as DateTime).isAfter(startDate!)).toList();
      }
 
-     // Calculate Avg Score Increase
      double avgIncrease = 0;
      if (progressData.length > 1) {
        final first = progressData.first['value'] as double;
@@ -479,19 +446,34 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          // Time Toggle
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildTimeToggle(0, "1W", true),
-                _buildTimeToggle(1, "1M", true),
-                _buildTimeToggle(2, "3M", true),
-                _buildTimeToggle(3, "6M", true),
-                _buildTimeToggle(4, "1Y", true),
-                _buildTimeToggle(5, "All", true),
-              ],
-            ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth > 600) {
+                 return Row(
+                   children: [
+                     Expanded(child: _buildTimeToggle(0, "1W", true, true)),
+                     Expanded(child: _buildTimeToggle(1, "1M", true, true)),
+                     Expanded(child: _buildTimeToggle(2, "3M", true, true)),
+                     Expanded(child: _buildTimeToggle(3, "6M", true, true)),
+                     Expanded(child: _buildTimeToggle(4, "1Y", true, true)),
+                     Expanded(child: _buildTimeToggle(5, "All", true, true)),
+                   ],
+                 );
+              }
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildTimeToggle(0, "1W", true, false),
+                    _buildTimeToggle(1, "1M", true, false),
+                    _buildTimeToggle(2, "3M", true, false),
+                    _buildTimeToggle(3, "6M", true, false),
+                    _buildTimeToggle(4, "1Y", true, false),
+                    _buildTimeToggle(5, "All", true, false),
+                  ],
+                ),
+              );
+            }
           ),
           const SizedBox(height: 16),
           
@@ -608,7 +590,74 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
+  Widget _buildMiniStat(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+        Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+      ],
+    );
+  }
 
+  LineChartBarData _buildLine(List<WeightLog> logs, double? Function(WeightLog) mapper, Color color) {
+    return LineChartBarData(
+      spots: logs.asMap().entries.map((e) {
+        final val = mapper(e.value);
+        return val != null ? FlSpot(e.key.toDouble(), val) : null;
+      }).nonNulls.cast<FlSpot>().toList(),
+      isCurved: true,
+      color: color,
+      barWidth: 3,
+      isStrokeCapRound: true,
+      dotData: const FlDotData(show: true),
+      belowBarData: BarAreaData(
+        show: true,
+        gradient: LinearGradient(
+          colors: [color.withOpacity(0.3), color.withOpacity(0.0)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimeToggle(int index, String label, bool isWorkout, bool expanded) {
+    final selected = isWorkout ? selectedWorkoutTimeRange : selectedTimeRange;
+    final isSelected = selected == index;
+    
+    Widget chip = ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (val) {
+        setState(() {
+          if (isWorkout) {
+            selectedWorkoutTimeRange = index;
+          } else {
+            selectedTimeRange = index;
+          }
+        });
+      },
+      selectedColor: const Color(0xFF80CBC4),
+      labelStyle: TextStyle(color: isSelected ? Colors.black : Colors.white),
+      backgroundColor: const Color(0xFF2C2C2C),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide.none),
+    );
+    
+    if (expanded) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: SizedBox(
+          width: double.infinity,
+          child: chip, 
+        ),
+      );
+    }
+    
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: chip,
+    );
+  }
 
   Widget _buildChartCard({required String title, required Widget child, Widget? headerAction}) {
     return Card(

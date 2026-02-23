@@ -6,6 +6,7 @@ import '../services/widget_service.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:archive/archive.dart';
 
 // UI Helpers to map Database classes to UI needs
 class ReminderWithSubs {
@@ -44,21 +45,126 @@ class AppProvider with ChangeNotifier {
   DateTime get selectedStatisticsDate => _selectedStatisticsDate;
 
   Future<void> replaceDatabase(List<int> bytes) async {
-    await _db.close();
-    
+     // Legacy support or fallback
+     await _restoreFromBytes(bytes);
+  }
+
+  Future<void> restoreFromZip(List<int> bytes) async {
+    final archive = ZipDecoder().decodeBytes(bytes);
     final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'dragonfakt.sqlite'));
+    final imagesDir = Directory(p.join(dbFolder.path, 'images'));
+    if (!await imagesDir.exists()) {
+      await imagesDir.create(recursive: true);
+    }
+
+    // 1. Extract files
+    for (final file in archive) {
+      if (file.isFile) {
+        if (file.name == 'dragonfakt.sqlite') {
+           final dbFile = File(p.join(dbFolder.path, 'dragonfakt.sqlite'));
+           await _closeDb();
+           await _deleteWal(dbFile);
+           await dbFile.writeAsBytes(file.content as List<int>, flush: true);
+        } else if (file.name.startsWith('images/')) {
+           final filename = p.basename(file.name);
+           final outFile = File(p.join(imagesDir.path, filename));
+           await outFile.writeAsBytes(file.content as List<int>, flush: true);
+        }
+      }
+    }
+
+    // 2. Re-open DB
+    _db = AppDatabase();
     
-    // Safety: try to delete WAL files if they exist to prevent corruption mixing old WAL with new DB
-    final wal = File('${file.path}-wal');
-    final shm = File('${file.path}-shm');
+    // 3. Fix paths in DB to match new local path
+    await _fixDatabaseImagePaths(imagesDir.path);
+
+    await loadData();
+  }
+
+  Future<void> _closeDb() async {
+    await _db.close();
+  }
+
+  Future<void> _deleteWal(File dbFile) async {
+    final wal = File('${dbFile.path}-wal');
+    final shm = File('${dbFile.path}-shm');
     if (await wal.exists()) await wal.delete();
     if (await shm.exists()) await shm.delete();
+  }
 
+  Future<void> _restoreFromBytes(List<int> bytes) async {
+    final dbFolder = await getApplicationDocumentsDirectory();
+    final file = File(p.join(dbFolder.path, 'dragonfakt.sqlite'));
+    await _closeDb();
+    await _deleteWal(file);
     await file.writeAsBytes(bytes, flush: true);
-    
     _db = AppDatabase();
     await loadData();
+  }
+
+  Future<void> _fixDatabaseImagePaths(String localImagesPath) async {
+    // Iterate all reminders with images
+    final reminders = await _db.select(_db.reminders).get();
+    for (var r in reminders) {
+      if (r.imagePath != null) {
+        final filename = p.basename(r.imagePath!);
+        final newPath = p.join(localImagesPath, filename);
+        if (r.imagePath != newPath) {
+           await _db.updateReminder(r.copyWith(imagePath: drift.Value(newPath)));
+        }
+      }
+    }
+    
+    // Iterate sub-reminders
+    final subs = await _db.select(_db.subReminders).get();
+    for (var s in subs) {
+      if (s.imagePath != null) {
+        final filename = p.basename(s.imagePath!);
+        final newPath = p.join(localImagesPath, filename);
+        if (s.imagePath != newPath) {
+           await _db.updateSubReminder(s.copyWith(imagePath: drift.Value(newPath)));
+        }
+      }
+    }
+  }
+
+  Future<List<String>> getAllImagePaths() async {
+    final paths = <String>[];
+    // Reminders
+    final reminders = await _db.select(_db.reminders).get();
+    for(var r in reminders) {
+      if (r.imagePath != null) paths.add(r.imagePath!);
+    }
+    // SubReminders
+    final subs = await _db.select(_db.subReminders).get();
+    for(var s in subs) {
+      if (s.imagePath != null) paths.add(s.imagePath!);
+    }
+    return paths;
+  }
+
+  Future<String?> _saveImage(String? sourcePath) async {
+    if (sourcePath == null) return null;
+    try {
+      final sourceFile = File(sourcePath);
+      if (!await sourceFile.exists()) return sourcePath; // Fallback
+
+      final appDir = await getApplicationDocumentsDirectory();
+      final imagesDir = Directory(p.join(appDir.path, 'images'));
+      if (!await imagesDir.exists()) {
+        await imagesDir.create(recursive: true);
+      }
+
+      final filename = "${DateTime.now().millisecondsSinceEpoch}_${p.basename(sourcePath)}";
+      final newPath = p.join(imagesDir.path, filename);
+      
+      await sourceFile.copy(newPath);
+      return newPath;
+    } catch (e) {
+      print("Error saving image: $e");
+      return sourcePath;
+    }
   }
 
   // Urgent Tasks (Sorted by Overdue -> Today -> Soon)
@@ -352,10 +458,12 @@ class AppProvider with ChangeNotifier {
        nextOrder = category.reminders.length;
     }
 
+    final savedImagePath = await _saveImage(imagePath);
+
     await _db.insertReminder(RemindersCompanion(
       categoryId: drift.Value(categoryId),
       title: drift.Value(title),
-      imagePath: drift.Value(imagePath),
+      imagePath: drift.Value(savedImagePath),
       orderIndex: drift.Value(nextOrder),
       dueDate: drift.Value(dueDate),
       endDate: drift.Value(endDate),
@@ -373,7 +481,17 @@ class AppProvider with ChangeNotifier {
   }
 
   Future<void> updateReminder(Reminder reminder) async {
-    await _db.updateReminder(reminder);
+    String? finalPath = reminder.imagePath;
+    if (finalPath != null) {
+       // Check if it's already in our managed directory
+       final appDir = await getApplicationDocumentsDirectory();
+       final imagesDir = Directory(p.join(appDir.path, 'images'));
+       if (!finalPath.startsWith(imagesDir.path)) {
+          finalPath = await _saveImage(finalPath);
+       }
+    }
+
+    await _db.updateReminder(reminder.copyWith(imagePath: drift.Value(finalPath)));
     await _loadCategories();
     await _updateWidgets();
     notifyListeners();
@@ -452,10 +570,11 @@ class AppProvider with ChangeNotifier {
   }
 
   Future<void> addSubReminder(int reminderId, String title, {String? imagePath}) async {
+    final savedPath = await _saveImage(imagePath);
     await _db.insertSubReminder(SubRemindersCompanion(
       reminderId: drift.Value(reminderId),
       title: drift.Value(title),
-      imagePath: drift.Value(imagePath),
+      imagePath: drift.Value(savedPath),
     ));
     await _loadCategories();
     await _updateWidgets();

@@ -16,6 +16,10 @@ class _SyncScreenState extends State<SyncScreen> {
   void initState() {
     super.initState();
     final syncService = Provider.of<SyncService>(context, listen: false);
+    final appProvider = Provider.of<AppProvider>(context, listen: false);
+    
+    syncService.getImagePathsCallback = appProvider.getAllImagePaths;
+
     syncService.init().then((_) {
       syncService.startDiscovery();
       syncService.startServerAndBroadcast();
@@ -24,11 +28,6 @@ class _SyncScreenState extends State<SyncScreen> {
 
   @override
   void dispose() {
-    // Note: We might want to keep the server running if the user leaves the screen?
-    // For now, let's stop it to save resources and avoid conflicts.
-    // Or we could move the lifecycle to the AppProvider or main.dart.
-    // Given the request, "access a cloud sync page ... and start syncing",
-    // it implies the process happens here.
     final syncService = Provider.of<SyncService>(context, listen: false);
     syncService.stopDiscovery();
     syncService.stopServerAndBroadcast();
@@ -38,7 +37,16 @@ class _SyncScreenState extends State<SyncScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Device Sync')),
+      appBar: AppBar(
+        title: const Text('Device Sync'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_link),
+            tooltip: "Manual Connect",
+            onPressed: () => _showManualConnectDialog(context),
+          )
+        ],
+      ),
       body: Consumer<SyncService>(
         builder: (context, syncService, child) {
           return Column(
@@ -64,6 +72,20 @@ class _SyncScreenState extends State<SyncScreen> {
                         Text(syncService.isBroadcasting ? "Broadcasting & Server Active" : "Offline", style: const TextStyle(color: Colors.grey)),
                       ],
                     ),
+                    if (syncService.isBroadcasting && syncService.serverPort != null) ...[
+                      const SizedBox(height: 8),
+                      const Text("Manual Connect Info:", style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
+                      Text("Port: ${syncService.serverPort}", style: const TextStyle(color: Colors.grey)),
+                      FutureBuilder<List<String>>(
+                        future: syncService.getLocalIps(),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                            return Text("IPs: ${snapshot.data!.join(', ')}", style: const TextStyle(color: Colors.grey));
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Row(
                       children: [
@@ -135,6 +157,44 @@ class _SyncScreenState extends State<SyncScreen> {
     );
   }
 
+  void _showManualConnectDialog(BuildContext context) {
+    final ipController = TextEditingController();
+    final portController = TextEditingController(); // Assuming default port might vary, but server uses random. User needs to know port.
+    // Wait, mDNS gives port. Manual connect needs port.
+    // Display my port?
+    // "Serving at http://...:PORT" is logged.
+    // I should display MY port in the UI so others can connect manually.
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => StyledDialog(
+        title: "Manual Connection",
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Enter IP and Port of the device to sync FROM.", style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 10),
+            TextField(controller: ipController, decoration: const InputDecoration(labelText: "IP Address (e.g. 192.168.1.5)")),
+            const SizedBox(height: 10),
+            TextField(controller: portController, decoration: const InputDecoration(labelText: "Port"), keyboardType: TextInputType.number),
+          ],
+        ),
+        onCancel: () => Navigator.pop(ctx),
+        onSave: () {
+          final ip = ipController.text;
+          final port = int.tryParse(portController.text);
+          if (ip.isNotEmpty && port != null) {
+             Navigator.pop(ctx);
+             final service = Provider.of<SyncService>(context, listen: false);
+             final device = service.createManualDevice(ip, port);
+             _confirmSync(context, service, device);
+          }
+        },
+        saveText: "Connect",
+      )
+    );
+  }
+
   void _confirmSync(BuildContext context, SyncService service, DiscoveredDevice device) {
     showDialog(
       context: context, 
@@ -162,12 +222,12 @@ class _SyncScreenState extends State<SyncScreen> {
       builder: (ctx) => const Center(child: CircularProgressIndicator()),
     );
 
-    final bytes = await service.pullDatabaseBytes(device);
+    final bytes = await service.pullZipBytes(device);
     
     if (bytes != null) {
       if (context.mounted) {
         // Reload App Data safely via AppProvider
-        await Provider.of<AppProvider>(context, listen: false).replaceDatabase(bytes);
+        await Provider.of<AppProvider>(context, listen: false).restoreFromZip(bytes);
         
         // Close loading dialog
         if (context.mounted) Navigator.pop(context);

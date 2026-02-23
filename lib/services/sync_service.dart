@@ -13,6 +13,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:archive/archive.dart';
+
 class DiscoveredDevice {
   final String name;
   final String host;
@@ -27,6 +29,8 @@ class DiscoveredDevice {
   @override
   int get hashCode => id.hashCode;
 }
+
+typedef Future<List<String>> ImagePathsCallback();
 
 class SyncService extends ChangeNotifier {
   static final SyncService _instance = SyncService._internal();
@@ -45,12 +49,24 @@ class SyncService extends ChangeNotifier {
   String _myDeviceName = "Unknown Device";
   String get myDeviceName => _myDeviceName;
 
+  ImagePathsCallback? getImagePathsCallback;
+
   bool get isBroadcasting => _isBroadcasting;
   bool get isDiscovering => _isDiscovering;
+  int? get serverPort => _server?.port;
 
   Future<void> init() async {
     _myDeviceName = await _getDeviceName();
     notifyListeners();
+  }
+
+  Future<List<String>> getLocalIps() async {
+    final interfaces = await NetworkInterface.list(type: InternetAddressType.IPv4);
+    return interfaces
+        .expand((i) => i.addresses)
+        .map((a) => a.address)
+        .where((ip) => ip != '127.0.0.1')
+        .toList();
   }
 
   Future<String> _getDeviceName() async {
@@ -84,10 +100,52 @@ class SyncService extends ChangeNotifier {
       // 1. Start HTTP Server
       final app = Router();
       
+      app.get('/sync', (Request request) async {
+        final dbFolder = await getApplicationDocumentsDirectory();
+        final dbFile = File(p.join(dbFolder.path, 'dragonfakt.sqlite'));
+        
+        if (!await dbFile.exists()) {
+           return Response.notFound('Database not found');
+        }
+
+        final archive = Archive();
+        
+        // Add DB
+        final dbBytes = await dbFile.readAsBytes();
+        archive.addFile(ArchiveFile('dragonfakt.sqlite', dbBytes.length, dbBytes));
+        
+        // Add Images
+        if (getImagePathsCallback != null) {
+           final imagePaths = await getImagePathsCallback!();
+           for (final path in imagePaths) {
+              final file = File(path);
+              if (await file.exists()) {
+                 final bytes = await file.readAsBytes();
+                 final name = "images/${p.basename(path)}";
+                 archive.addFile(ArchiveFile(name, bytes.length, bytes));
+              }
+           }
+        }
+        
+        final zipEncoder = ZipEncoder();
+        final encodedZip = zipEncoder.encode(archive);
+
+        if (encodedZip == null) return Response.internalServerError(body: "Failed to zip");
+
+        return Response.ok(encodedZip, headers: {
+             'Content-Type': 'application/zip',
+             'Content-Disposition': 'attachment; filename="dragonfakt_backup.zip"'
+        });
+      });
+      
+      // Legacy route redirect or support? Let's keep /db for backward compat if needed, 
+      // but new client calls /sync.
+      // Actually, let's make /db route just return the DB file as before, 
+      // but new client will use /sync.
       app.get('/db', (Request request) async {
         final dbFolder = await getApplicationDocumentsDirectory();
         final file = File(p.join(dbFolder.path, 'dragonfakt.sqlite'));
-        if (await file.exists()) {
+         if (await file.exists()) {
            return Response.ok(file.openRead(), headers: {
              'Content-Type': 'application/octet-stream',
              'Content-Disposition': 'attachment; filename="dragonfakt.sqlite"'
@@ -220,6 +278,29 @@ class SyncService extends ChangeNotifier {
 
   // --- Sync Action ---
 
+  Future<List<int>?> pullZipBytes(DiscoveredDevice device) async {
+    try {
+      final url = Uri.parse('http://${device.host}:${device.port}/sync');
+      print("Pulling ZIP from $url");
+      
+      final response = await http.get(url).timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else if (response.statusCode == 404) {
+         // Fallback to legacy /db
+         return pullDatabaseBytes(device);
+      } else {
+        print("Failed to download ZIP: ${response.statusCode}");
+        return null;
+      }
+    } catch (e) {
+      print("Sync error: $e");
+      // Fallback attempt
+      return pullDatabaseBytes(device);
+    }
+  }
+
   Future<List<int>?> pullDatabaseBytes(DiscoveredDevice device) async {
     try {
       final url = Uri.parse('http://${device.host}:${device.port}/db');
@@ -237,5 +318,14 @@ class SyncService extends ChangeNotifier {
       print("Sync error: $e");
       return null;
     }
+  }
+  
+  DiscoveredDevice createManualDevice(String ip, int port) {
+    return DiscoveredDevice(
+      name: "Manual: $ip",
+      host: ip,
+      port: port,
+      id: "manual_$ip",
+    );
   }
 }

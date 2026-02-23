@@ -1146,7 +1146,7 @@ class _ReminderTile extends StatelessWidget {
                Padding(
                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
                  child: GestureDetector(
-                   onTap: () => showDialog(context: context, builder: (ctx) => Dialog(child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.file(File(reminder.imagePath!))))),
+                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ImageViewer(imagePath: reminder.imagePath!))),
                    child: CircleAvatar(backgroundImage: FileImage(File(reminder.imagePath!)), radius: 18),
                  ),
                )
@@ -1178,7 +1178,7 @@ class _ReminderTile extends StatelessWidget {
                 title: Row(
                   children: [
                      Expanded(child: Text(sub.title, style: TextStyle(decoration: sub.isCompleted ? TextDecoration.lineThrough : null, color: sub.isCompleted ? Colors.grey : null, fontSize: 15))),
-                     if (sub.imagePath != null) GestureDetector(onTap: () => showDialog(context: context, builder: (ctx) => Dialog(child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.file(File(sub.imagePath!))))), child: CircleAvatar(backgroundImage: FileImage(File(sub.imagePath!)), radius: 12))
+                     if (sub.imagePath != null) GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ImageViewer(imagePath: sub.imagePath!))), child: CircleAvatar(backgroundImage: FileImage(File(sub.imagePath!)), radius: 12))
                   ],
                 ),
                 trailing: Row(

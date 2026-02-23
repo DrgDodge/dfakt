@@ -1,5 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:io';
+import 'package:share_plus/share_plus.dart';
+
+class ImageViewer extends StatelessWidget {
+  final String imagePath;
+
+  const ImageViewer({super.key, required this.imagePath});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: () {
+              Share.shareXFiles([XFile(imagePath)]);
+            },
+          ),
+        ],
+      ),
+      body: Container(
+        constraints: const BoxConstraints.expand(),
+        child: InteractiveViewer(
+          minScale: 0.1,
+          maxScale: 5.0,
+          boundaryMargin: const EdgeInsets.all(double.infinity),
+          child: Image.file(
+            File(imagePath),
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class StyledDialog extends StatelessWidget {
   final String title;

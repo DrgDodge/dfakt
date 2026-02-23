@@ -27,69 +27,124 @@ class DashboardScreen extends StatelessWidget {
           )
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              provider.userName != null ? "Welcome Back, ${provider.userName}" : "Welcome Back", 
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF80CBC4)),
-            ),
-            Text(
-              DateFormat.yMMMMEEEEd().format(DateTime.now()),
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-            const SizedBox(height: 24),
-
-            // Row for Consistency and Trend Headers and Cards
-            Row(
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Consistency Side
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionHeader("Consistency"),
-                      AspectRatio(
-                        aspectRatio: 1.2,
-                        child: _buildConsistencyCard(weightLogs),
-                      ),
-                    ],
-                  ),
+                Text(
+                  provider.userName != null ? "Welcome Back, ${provider.userName}" : "Welcome Back", 
+                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF80CBC4)),
                 ),
-                const SizedBox(width: 12),
-                // Trend Side
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionHeader("Trend"),
-                      AspectRatio(
-                        aspectRatio: 1.2,
-                        child: _buildMiniTrendCard(weightLogs),
-                      ),
-                    ],
-                  ),
+                Text(
+                  DateFormat.yMMMMEEEEd().format(DateTime.now()),
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
+                const SizedBox(height: 24),
+
+                // Row for Consistency and Trend Headers and Cards
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth >= 800) {
+                      // Desktop: Priority Left, Charts Right (Column)
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Priority Tasks (Left)
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildSectionHeader("Priority Tasks"),
+                                if (provider.urgentTasks.isEmpty)
+                                  Card(
+                                    color: const Color(0xFF252525),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: Colors.white.withOpacity(0.05))),
+                                    child: const Padding(padding: EdgeInsets.all(20), child: Center(child: Text("All caught up!", style: TextStyle(color: Colors.grey)))),
+                                  )
+                                else
+                                  Column(
+                                    children: provider.urgentTasks.take(10).map((task) => _buildUrgentTaskCard(context, task, provider)).toList(),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 24),
+                          // Charts (Right Column)
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildSectionHeader("Consistency"),
+                                AspectRatio(
+                                  aspectRatio: 2.0,
+                                  child: _buildConsistencyCard(weightLogs),
+                                ),
+                                const SizedBox(height: 24),
+                                _buildSectionHeader("Trend"),
+                                AspectRatio(
+                                  aspectRatio: 2.0,
+                                  child: _buildMiniTrendCard(weightLogs),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    } else {
+                      // Mobile: Charts Row, Priority Below
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildSectionHeader("Consistency"),
+                                    AspectRatio(aspectRatio: 1.2, child: _buildConsistencyCard(weightLogs)),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildSectionHeader("Trend"),
+                                    AspectRatio(aspectRatio: 1.2, child: _buildMiniTrendCard(weightLogs)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          _buildSectionHeader("Priority Tasks"),
+                          if (provider.urgentTasks.isEmpty)
+                            Card(
+                              color: const Color(0xFF252525),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: Colors.white.withOpacity(0.05))),
+                              child: const Padding(padding: EdgeInsets.all(20), child: Center(child: Text("All caught up!", style: TextStyle(color: Colors.grey)))),
+                            )
+                          else
+                            Column(
+                              children: provider.urgentTasks.take(5).map((task) => _buildUrgentTaskCard(context, task, provider)).toList(),
+                            ),
+                        ],
+                      );
+                    }
+                  }
+                ),
+                // Removed redundant Priority Tasks section from bottom since it is now inside LayoutBuilder
               ],
             ),
-            const SizedBox(height: 24),
-
-            // Priority Tasks
-            _buildSectionHeader("Priority Tasks"),
-            if (provider.urgentTasks.isEmpty)
-              Card(
-                color: const Color(0xFF252525),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: Colors.white.withOpacity(0.05))),
-                child: const Padding(padding: EdgeInsets.all(20), child: Center(child: Text("All caught up!", style: TextStyle(color: Colors.grey)))),
-              )
-            else
-              Column(
-                children: provider.urgentTasks.take(5).map((task) => _buildUrgentTaskCard(context, task, provider)).toList(),
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -204,26 +259,30 @@ class DashboardScreen extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             // Calculate item width: (total width - (6 spaces * 8px spacing)) / 7 items
-            final double itemWidth = ((constraints.maxWidth - 48) / 7).clamp(0.0, double.infinity);
+            // Limit max width to 40.0 to prevent huge circles on desktop
+            final double itemWidth = ((constraints.maxWidth - 48) / 7).clamp(0.0, 40.0);
             
-            return Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: List.generate(daysInMonth, (index) {
-                final day = index + 1;
-                final isLogged = loggedDays.contains(day);
-                final isToday = day == now.day;
-                
-                return Container(
-                  width: itemWidth,
-                  height: itemWidth,
-                  decoration: BoxDecoration(
-                    color: isLogged ? const Color(0xFF80CBC4) : (isToday ? const Color(0xFF80CBC4).withOpacity(0.2) : Colors.transparent),
-                    shape: BoxShape.circle,
-                    border: isLogged ? null : Border.all(color: Colors.grey.shade800),
-                  ),
-                );
-              }),
+            return Center(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: List.generate(daysInMonth, (index) {
+                  final day = index + 1;
+                  final isLogged = loggedDays.contains(day);
+                  final isToday = day == now.day;
+                  
+                  return Container(
+                    width: itemWidth,
+                    height: itemWidth,
+                    decoration: BoxDecoration(
+                      color: isLogged ? const Color(0xFF80CBC4) : (isToday ? const Color(0xFF80CBC4).withOpacity(0.2) : Colors.transparent),
+                      shape: BoxShape.circle,
+                      border: isLogged ? null : Border.all(color: Colors.grey.shade800),
+                    ),
+                  );
+                }),
+              ),
             );
           },
         ),
