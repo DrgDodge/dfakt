@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:home_widget/home_widget.dart';
 import 'providers/app_provider.dart';
+import 'services/sync_service.dart';
 import 'screens/home_screen.dart';
 
 void main() {
@@ -17,6 +18,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AppProvider()..loadData()),
+        ChangeNotifierProvider(create: (_) => SyncService()),
       ],
       child: const MaterialAppWithTheme(),
     );

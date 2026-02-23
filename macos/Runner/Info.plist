@@ -28,5 +28,11 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Used to discover other devices for database synchronization.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_dragonfakt._tcp</string>
+	</array>
 </dict>
 </plist>

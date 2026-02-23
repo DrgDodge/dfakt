@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../database/database.dart';
 import '../widgets/ui_helpers.dart';
+import 'sync_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -57,6 +58,17 @@ class SettingsScreen extends StatelessWidget {
                       onTap: () => _showEditExerciseDialog(context, provider, e),
                     ))
                   ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              _buildSectionHeader("Sync"),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.sync, color: Color(0xFF80CBC4)),
+                  title: const Text("Device Sync"),
+                  subtitle: const Text("Sync data with other devices on local network"),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SyncScreen())),
                 ),
               ),
               if (provider.exercises.any((e) => e.name == "Pushups"))

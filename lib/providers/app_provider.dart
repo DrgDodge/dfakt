@@ -3,6 +3,9 @@ import 'package:drift/drift.dart' as drift;
 import '../database/database.dart';
 import 'package:collection/collection.dart';
 import '../services/widget_service.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 
 // UI Helpers to map Database classes to UI needs
 class ReminderWithSubs {
@@ -18,7 +21,7 @@ class CategoryWithReminders {
 }
 
 class AppProvider with ChangeNotifier {
-  final AppDatabase _db = AppDatabase();
+  AppDatabase _db = AppDatabase();
 
   List<CategoryWithReminders> _categories = [];
   List<GymLogWithExercise> _gymLogs = [];
@@ -39,6 +42,24 @@ class AppProvider with ChangeNotifier {
   String? get userName => _userName;
   DateTime get selectedNutritionDate => _selectedNutritionDate;
   DateTime get selectedStatisticsDate => _selectedStatisticsDate;
+
+  Future<void> replaceDatabase(List<int> bytes) async {
+    await _db.close();
+    
+    final dbFolder = await getApplicationDocumentsDirectory();
+    final file = File(p.join(dbFolder.path, 'dragonfakt.sqlite'));
+    
+    // Safety: try to delete WAL files if they exist to prevent corruption mixing old WAL with new DB
+    final wal = File('${file.path}-wal');
+    final shm = File('${file.path}-shm');
+    if (await wal.exists()) await wal.delete();
+    if (await shm.exists()) await shm.delete();
+
+    await file.writeAsBytes(bytes, flush: true);
+    
+    _db = AppDatabase();
+    await loadData();
+  }
 
   // Urgent Tasks (Sorted by Overdue -> Today -> Soon)
   List<Reminder> get urgentTasks {
