@@ -226,14 +226,21 @@ class _SyncScreenState extends State<SyncScreen> {
     
     if (bytes != null) {
       if (context.mounted) {
-        // Reload App Data safely via AppProvider
-        await Provider.of<AppProvider>(context, listen: false).restoreFromZip(bytes);
-        
-        // Close loading dialog
-        if (context.mounted) Navigator.pop(context);
-        
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sync successful! Data updated.")));
-        Navigator.pop(context); // Go back to settings
+        try {
+          // Reload App Data safely via AppProvider
+          await Provider.of<AppProvider>(context, listen: false).restoreFromZip(bytes);
+          
+          // Close loading dialog
+          if (context.mounted) Navigator.pop(context);
+          
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sync successful! Data updated.")));
+          Navigator.pop(context); // Go back to settings
+        } catch (e) {
+          print("Restore failed: $e");
+          // Close loading dialog
+          if (context.mounted) Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Restore failed: $e")));
+        }
       } else {
          if (context.mounted) Navigator.pop(context); // close loading
       }

@@ -5,6 +5,7 @@ import 'package:home_widget/home_widget.dart';
 import 'providers/app_provider.dart';
 import 'services/sync_service.dart';
 import 'screens/home_screen.dart';
+import 'dart:io';
 
 void main() {
   runApp(const MyApp());
@@ -36,8 +37,10 @@ class _MaterialAppWithThemeState extends State<MaterialAppWithTheme> {
    @override
   void initState() {
     super.initState();
-    HomeWidget.initiallyLaunchedFromHomeWidget().then(_handleLaunch);
-    HomeWidget.widgetClicked.listen(_handleLaunch);
+    if (Platform.isAndroid || Platform.isIOS) {
+      HomeWidget.initiallyLaunchedFromHomeWidget().then(_handleLaunch);
+      HomeWidget.widgetClicked.listen(_handleLaunch);
+    }
   }
 
   void _handleLaunch(Uri? uri) {

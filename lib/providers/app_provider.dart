@@ -50,36 +50,80 @@ class AppProvider with ChangeNotifier {
   }
 
   Future<void> restoreFromZip(List<int> bytes) async {
+    // 0. Clear UI state to release file locks from Image widgets
+    _categories = [];
+    _gymLogs = [];
+    _weightLogs = [];
+    _nutritionLogs = [];
+    _exercises = [];
+    notifyListeners();
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    final tempDir = await getTemporaryDirectory();
+    final tempZipFile = File(p.join(tempDir.path, 'restore_temp.zip'));
+    await tempZipFile.writeAsBytes(bytes);
+
     final archive = ZipDecoder().decodeBytes(bytes);
     final dbFolder = await getApplicationDocumentsDirectory();
     final imagesDir = Directory(p.join(dbFolder.path, 'images'));
+    
     if (!await imagesDir.exists()) {
       await imagesDir.create(recursive: true);
     }
 
-    // 1. Extract files
+    // 1. Close DB and Clear Cache
+    await _closeDb();
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // 2. Extract and Move Files
     for (final file in archive) {
       if (file.isFile) {
         if (file.name == 'dragonfakt.sqlite') {
            final dbFile = File(p.join(dbFolder.path, 'dragonfakt.sqlite'));
-           await _closeDb();
-           await _deleteWal(dbFile);
+           
+           // Retry loop for DB file deletion
+           int retries = 0;
+           while (retries < 5) {
+             try {
+               await _deleteWal(dbFile);
+               if (await dbFile.exists()) await dbFile.delete();
+               break;
+             } catch (e) {
+               print("DB Delete Retry $retries: $e");
+               await Future.delayed(const Duration(milliseconds: 200));
+               retries++;
+             }
+           }
+
            await dbFile.writeAsBytes(file.content as List<int>, flush: true);
         } else if (file.name.startsWith('images/')) {
            final filename = p.basename(file.name);
            final outFile = File(p.join(imagesDir.path, filename));
-           await outFile.writeAsBytes(file.content as List<int>, flush: true);
+           
+           try {
+             if (await outFile.exists()) {
+                try { await outFile.delete(); } catch (_) {}
+             }
+             await outFile.writeAsBytes(file.content as List<int>, flush: true);
+           } catch (e) {
+             print("Failed to overwrite image $filename: $e");
+           }
         }
       }
     }
 
-    // 2. Re-open DB
+    // 3. Re-open DB
     _db = AppDatabase();
     
-    // 3. Fix paths in DB to match new local path
+    // 4. Fix paths in DB to match new local path
     await _fixDatabaseImagePaths(imagesDir.path);
 
     await loadData();
+    
+    // Cleanup temp
+    if (await tempZipFile.exists()) await tempZipFile.delete();
   }
 
   Future<void> _closeDb() async {
