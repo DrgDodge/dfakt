@@ -507,7 +507,10 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
                 child: Column(
                   children: [
                     ListTile(
-                      leading: const Icon(Icons.drag_handle, color: Colors.grey),
+                      leading: ReorderableDragStartListener(
+                        index: index,
+                        child: const Icon(Icons.drag_handle, color: Colors.grey),
+                      ),
                       title: GestureDetector(
                         onLongPress: () => _showEditCategoryDialog(context, provider, category),
                         child: Text(category.name, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -557,6 +560,7 @@ class _RemindersScreenState extends State<RemindersScreen> with TickerProviderSt
                                       categoryId: category.id,
                                       reminderData: reminderData,
                                       isHighlighted: _highlightedReminderId == reminderData.reminder.id,
+                                      reorderIndex: rIndex,
                                    );
                                 },
                              ),
@@ -785,6 +789,7 @@ class _ReminderTile extends StatefulWidget {
   final bool isHighlighted;
   final bool showMenu;
   final bool isCompletedView;
+  final int? reorderIndex;
   final VoidCallback? onTap;
 
   const _ReminderTile({
@@ -794,6 +799,7 @@ class _ReminderTile extends StatefulWidget {
     this.isHighlighted = false,
     this.showMenu = true,
     this.isCompletedView = false,
+    this.reorderIndex,
     this.onTap,
   }) : super(key: key);
 
@@ -854,6 +860,14 @@ class _ReminderTileState extends State<_ReminderTile> {
         shape: const Border(),
         title: Row(
           children: [
+            if (widget.reorderIndex != null)
+               ReorderableDragStartListener(
+                 index: widget.reorderIndex!,
+                 child: const Padding(
+                   padding: EdgeInsets.only(right: 8.0),
+                   child: Icon(Icons.drag_handle, color: Colors.grey, size: 20),
+                 ),
+               ),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -602,6 +602,7 @@ class AppProvider with ChangeNotifier {
           await _db.updateReminder(target.copyWith(isCompleted: value));
         }
         await _loadCategories();
+        await _updateWidgets();
         notifyListeners();
     }
   }
