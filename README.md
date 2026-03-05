@@ -1,6 +1,6 @@
 # dragonfakt
 
-A new Flutter project.
+DO NOT COPY THE PROJECT, IT IS COPYWRIGHTED
 
 ## Getting Started
 
