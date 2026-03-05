@@ -71,6 +71,31 @@ class UserGoals extends Table {
   TextColumn get userName => text().nullable()();
 }
 
+// Storage Tables
+class StorageFolders extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  IntColumn get parentId => integer().nullable().references(StorageFolders, #id, onDelete: KeyAction.cascade)();
+  IntColumn get color => integer().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+class StorageFiles extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  TextColumn get path => text()();
+  TextColumn get type => text()(); // 'image' or 'pdf'
+  IntColumn get folderId => integer().nullable().references(StorageFolders, #id, onDelete: KeyAction.cascade)();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+class FileComments extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get fileId => integer().references(StorageFiles, #id, onDelete: KeyAction.cascade)();
+  TextColumn get content => text()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 // --- Database Class ---
 
 @DriftDatabase(tables: [
@@ -81,13 +106,16 @@ class UserGoals extends Table {
   GymLogs,
   WeightLogs,
   NutritionLogs,
-  UserGoals
+  UserGoals,
+  StorageFolders,
+  StorageFiles,
+  FileComments
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(connect());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -122,10 +150,48 @@ class AppDatabase extends _$AppDatabase {
       if (from < 8) {
         await m.addColumn(reminders, reminders.color);
       }
+      if (from < 9) {
+        await m.createTable(storageFolders);
+        await m.createTable(storageFiles);
+        await m.createTable(fileComments);
+      }
+      if (from == 9) {
+        await m.addColumn(storageFolders, storageFolders.color);
+      }
     },
   );
 
   // --- Queries ---
+  
+  // Storage Queries
+  Future<List<StorageFolder>> getFoldersIn(int? parentId) {
+    if (parentId == null) {
+      return (select(storageFolders)..where((tbl) => tbl.parentId.isNull())).get();
+    }
+    return (select(storageFolders)..where((tbl) => tbl.parentId.equals(parentId))).get();
+  }
+  
+  Future<List<StorageFile>> getFilesIn(int? folderId) {
+    if (folderId == null) {
+      return (select(storageFiles)..where((tbl) => tbl.folderId.isNull())).get();
+    }
+    return (select(storageFiles)..where((tbl) => tbl.folderId.equals(folderId))).get();
+  }
+  
+  Future<int> insertFolder(StorageFoldersCompanion entry) => into(storageFolders).insert(entry);
+  Future<int> deleteFolder(int id) => (delete(storageFolders)..where((tbl) => tbl.id.equals(id))).go();
+  Future<bool> updateFolder(StorageFolder entry) => update(storageFolders).replace(entry);
+  Future<StorageFolder> getFolderById(int id) => (select(storageFolders)..where((tbl) => tbl.id.equals(id))).getSingle();
+  
+  Future<int> insertFile(StorageFilesCompanion entry) => into(storageFiles).insert(entry);
+  Future<int> deleteFile(int id) => (delete(storageFiles)..where((tbl) => tbl.id.equals(id))).go();
+  Future<bool> updateFile(StorageFile entry) => update(storageFiles).replace(entry);
+  Future<StorageFile> getFileById(int id) => (select(storageFiles)..where((tbl) => tbl.id.equals(id))).getSingle();
+
+  Future<List<FileComment>> getCommentsForFile(int fileId) => 
+    (select(fileComments)..where((tbl) => tbl.fileId.equals(fileId))..orderBy([(t) => OrderingTerm(expression: t.createdAt)])).get();
+  Future<int> insertComment(FileCommentsCompanion entry) => into(fileComments).insert(entry);
+  Future<int> deleteComment(int id) => (delete(fileComments)..where((tbl) => tbl.id.equals(id))).go();
 
   // Categories & Reminders
   Future<List<Category>> getAllCategories() => (select(categories)..orderBy([(t) => OrderingTerm(expression: t.orderIndex)])).get();

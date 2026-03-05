@@ -2800,6 +2800,1045 @@ class UserGoalsCompanion extends UpdateCompanion<UserGoal> {
   }
 }
 
+class $StorageFoldersTable extends StorageFolders
+    with TableInfo<$StorageFoldersTable, StorageFolder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StorageFoldersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _parentIdMeta = const VerificationMeta(
+    'parentId',
+  );
+  @override
+  late final GeneratedColumn<int> parentId = GeneratedColumn<int>(
+    'parent_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES storage_folders (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _colorMeta = const VerificationMeta('color');
+  @override
+  late final GeneratedColumn<int> color = GeneratedColumn<int>(
+    'color',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, parentId, color, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'storage_folders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StorageFolder> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('parent_id')) {
+      context.handle(
+        _parentIdMeta,
+        parentId.isAcceptableOrUnknown(data['parent_id']!, _parentIdMeta),
+      );
+    }
+    if (data.containsKey('color')) {
+      context.handle(
+        _colorMeta,
+        color.isAcceptableOrUnknown(data['color']!, _colorMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StorageFolder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StorageFolder(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      parentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}parent_id'],
+      ),
+      color: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}color'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $StorageFoldersTable createAlias(String alias) {
+    return $StorageFoldersTable(attachedDatabase, alias);
+  }
+}
+
+class StorageFolder extends DataClass implements Insertable<StorageFolder> {
+  final int id;
+  final String name;
+  final int? parentId;
+  final int? color;
+  final DateTime createdAt;
+  const StorageFolder({
+    required this.id,
+    required this.name,
+    this.parentId,
+    this.color,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || parentId != null) {
+      map['parent_id'] = Variable<int>(parentId);
+    }
+    if (!nullToAbsent || color != null) {
+      map['color'] = Variable<int>(color);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  StorageFoldersCompanion toCompanion(bool nullToAbsent) {
+    return StorageFoldersCompanion(
+      id: Value(id),
+      name: Value(name),
+      parentId: parentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentId),
+      color: color == null && nullToAbsent
+          ? const Value.absent()
+          : Value(color),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory StorageFolder.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StorageFolder(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      parentId: serializer.fromJson<int?>(json['parentId']),
+      color: serializer.fromJson<int?>(json['color']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'parentId': serializer.toJson<int?>(parentId),
+      'color': serializer.toJson<int?>(color),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  StorageFolder copyWith({
+    int? id,
+    String? name,
+    Value<int?> parentId = const Value.absent(),
+    Value<int?> color = const Value.absent(),
+    DateTime? createdAt,
+  }) => StorageFolder(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    parentId: parentId.present ? parentId.value : this.parentId,
+    color: color.present ? color.value : this.color,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  StorageFolder copyWithCompanion(StorageFoldersCompanion data) {
+    return StorageFolder(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      parentId: data.parentId.present ? data.parentId.value : this.parentId,
+      color: data.color.present ? data.color.value : this.color,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StorageFolder(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('parentId: $parentId, ')
+          ..write('color: $color, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, parentId, color, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StorageFolder &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.parentId == this.parentId &&
+          other.color == this.color &&
+          other.createdAt == this.createdAt);
+}
+
+class StorageFoldersCompanion extends UpdateCompanion<StorageFolder> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<int?> parentId;
+  final Value<int?> color;
+  final Value<DateTime> createdAt;
+  const StorageFoldersCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.parentId = const Value.absent(),
+    this.color = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  StorageFoldersCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    this.parentId = const Value.absent(),
+    this.color = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : name = Value(name);
+  static Insertable<StorageFolder> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<int>? parentId,
+    Expression<int>? color,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (parentId != null) 'parent_id': parentId,
+      if (color != null) 'color': color,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  StorageFoldersCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<int?>? parentId,
+    Value<int?>? color,
+    Value<DateTime>? createdAt,
+  }) {
+    return StorageFoldersCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      parentId: parentId ?? this.parentId,
+      color: color ?? this.color,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (parentId.present) {
+      map['parent_id'] = Variable<int>(parentId.value);
+    }
+    if (color.present) {
+      map['color'] = Variable<int>(color.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StorageFoldersCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('parentId: $parentId, ')
+          ..write('color: $color, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $StorageFilesTable extends StorageFiles
+    with TableInfo<$StorageFilesTable, StorageFile> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StorageFilesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pathMeta = const VerificationMeta('path');
+  @override
+  late final GeneratedColumn<String> path = GeneratedColumn<String>(
+    'path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _folderIdMeta = const VerificationMeta(
+    'folderId',
+  );
+  @override
+  late final GeneratedColumn<int> folderId = GeneratedColumn<int>(
+    'folder_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES storage_folders (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    path,
+    type,
+    folderId,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'storage_files';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StorageFile> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('path')) {
+      context.handle(
+        _pathMeta,
+        path.isAcceptableOrUnknown(data['path']!, _pathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pathMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('folder_id')) {
+      context.handle(
+        _folderIdMeta,
+        folderId.isAcceptableOrUnknown(data['folder_id']!, _folderIdMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StorageFile map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StorageFile(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      path: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}path'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      folderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}folder_id'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $StorageFilesTable createAlias(String alias) {
+    return $StorageFilesTable(attachedDatabase, alias);
+  }
+}
+
+class StorageFile extends DataClass implements Insertable<StorageFile> {
+  final int id;
+  final String name;
+  final String path;
+  final String type;
+  final int? folderId;
+  final DateTime createdAt;
+  const StorageFile({
+    required this.id,
+    required this.name,
+    required this.path,
+    required this.type,
+    this.folderId,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    map['path'] = Variable<String>(path);
+    map['type'] = Variable<String>(type);
+    if (!nullToAbsent || folderId != null) {
+      map['folder_id'] = Variable<int>(folderId);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  StorageFilesCompanion toCompanion(bool nullToAbsent) {
+    return StorageFilesCompanion(
+      id: Value(id),
+      name: Value(name),
+      path: Value(path),
+      type: Value(type),
+      folderId: folderId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(folderId),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory StorageFile.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StorageFile(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      path: serializer.fromJson<String>(json['path']),
+      type: serializer.fromJson<String>(json['type']),
+      folderId: serializer.fromJson<int?>(json['folderId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'path': serializer.toJson<String>(path),
+      'type': serializer.toJson<String>(type),
+      'folderId': serializer.toJson<int?>(folderId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  StorageFile copyWith({
+    int? id,
+    String? name,
+    String? path,
+    String? type,
+    Value<int?> folderId = const Value.absent(),
+    DateTime? createdAt,
+  }) => StorageFile(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    path: path ?? this.path,
+    type: type ?? this.type,
+    folderId: folderId.present ? folderId.value : this.folderId,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  StorageFile copyWithCompanion(StorageFilesCompanion data) {
+    return StorageFile(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      path: data.path.present ? data.path.value : this.path,
+      type: data.type.present ? data.type.value : this.type,
+      folderId: data.folderId.present ? data.folderId.value : this.folderId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StorageFile(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('path: $path, ')
+          ..write('type: $type, ')
+          ..write('folderId: $folderId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, path, type, folderId, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StorageFile &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.path == this.path &&
+          other.type == this.type &&
+          other.folderId == this.folderId &&
+          other.createdAt == this.createdAt);
+}
+
+class StorageFilesCompanion extends UpdateCompanion<StorageFile> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<String> path;
+  final Value<String> type;
+  final Value<int?> folderId;
+  final Value<DateTime> createdAt;
+  const StorageFilesCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.path = const Value.absent(),
+    this.type = const Value.absent(),
+    this.folderId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  StorageFilesCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    required String path,
+    required String type,
+    this.folderId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : name = Value(name),
+       path = Value(path),
+       type = Value(type);
+  static Insertable<StorageFile> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<String>? path,
+    Expression<String>? type,
+    Expression<int>? folderId,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (path != null) 'path': path,
+      if (type != null) 'type': type,
+      if (folderId != null) 'folder_id': folderId,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  StorageFilesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<String>? path,
+    Value<String>? type,
+    Value<int?>? folderId,
+    Value<DateTime>? createdAt,
+  }) {
+    return StorageFilesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      path: path ?? this.path,
+      type: type ?? this.type,
+      folderId: folderId ?? this.folderId,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (path.present) {
+      map['path'] = Variable<String>(path.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (folderId.present) {
+      map['folder_id'] = Variable<int>(folderId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StorageFilesCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('path: $path, ')
+          ..write('type: $type, ')
+          ..write('folderId: $folderId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FileCommentsTable extends FileComments
+    with TableInfo<$FileCommentsTable, FileComment> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FileCommentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _fileIdMeta = const VerificationMeta('fileId');
+  @override
+  late final GeneratedColumn<int> fileId = GeneratedColumn<int>(
+    'file_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES storage_files (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _contentMeta = const VerificationMeta(
+    'content',
+  );
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+    'content',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, fileId, content, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'file_comments';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FileComment> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('file_id')) {
+      context.handle(
+        _fileIdMeta,
+        fileId.isAcceptableOrUnknown(data['file_id']!, _fileIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fileIdMeta);
+    }
+    if (data.containsKey('content')) {
+      context.handle(
+        _contentMeta,
+        content.isAcceptableOrUnknown(data['content']!, _contentMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  FileComment map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FileComment(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      fileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}file_id'],
+      )!,
+      content: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $FileCommentsTable createAlias(String alias) {
+    return $FileCommentsTable(attachedDatabase, alias);
+  }
+}
+
+class FileComment extends DataClass implements Insertable<FileComment> {
+  final int id;
+  final int fileId;
+  final String content;
+  final DateTime createdAt;
+  const FileComment({
+    required this.id,
+    required this.fileId,
+    required this.content,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['file_id'] = Variable<int>(fileId);
+    map['content'] = Variable<String>(content);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  FileCommentsCompanion toCompanion(bool nullToAbsent) {
+    return FileCommentsCompanion(
+      id: Value(id),
+      fileId: Value(fileId),
+      content: Value(content),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory FileComment.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FileComment(
+      id: serializer.fromJson<int>(json['id']),
+      fileId: serializer.fromJson<int>(json['fileId']),
+      content: serializer.fromJson<String>(json['content']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'fileId': serializer.toJson<int>(fileId),
+      'content': serializer.toJson<String>(content),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  FileComment copyWith({
+    int? id,
+    int? fileId,
+    String? content,
+    DateTime? createdAt,
+  }) => FileComment(
+    id: id ?? this.id,
+    fileId: fileId ?? this.fileId,
+    content: content ?? this.content,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  FileComment copyWithCompanion(FileCommentsCompanion data) {
+    return FileComment(
+      id: data.id.present ? data.id.value : this.id,
+      fileId: data.fileId.present ? data.fileId.value : this.fileId,
+      content: data.content.present ? data.content.value : this.content,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FileComment(')
+          ..write('id: $id, ')
+          ..write('fileId: $fileId, ')
+          ..write('content: $content, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, fileId, content, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FileComment &&
+          other.id == this.id &&
+          other.fileId == this.fileId &&
+          other.content == this.content &&
+          other.createdAt == this.createdAt);
+}
+
+class FileCommentsCompanion extends UpdateCompanion<FileComment> {
+  final Value<int> id;
+  final Value<int> fileId;
+  final Value<String> content;
+  final Value<DateTime> createdAt;
+  const FileCommentsCompanion({
+    this.id = const Value.absent(),
+    this.fileId = const Value.absent(),
+    this.content = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  FileCommentsCompanion.insert({
+    this.id = const Value.absent(),
+    required int fileId,
+    required String content,
+    this.createdAt = const Value.absent(),
+  }) : fileId = Value(fileId),
+       content = Value(content);
+  static Insertable<FileComment> custom({
+    Expression<int>? id,
+    Expression<int>? fileId,
+    Expression<String>? content,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (fileId != null) 'file_id': fileId,
+      if (content != null) 'content': content,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  FileCommentsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? fileId,
+    Value<String>? content,
+    Value<DateTime>? createdAt,
+  }) {
+    return FileCommentsCompanion(
+      id: id ?? this.id,
+      fileId: fileId ?? this.fileId,
+      content: content ?? this.content,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (fileId.present) {
+      map['file_id'] = Variable<int>(fileId.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FileCommentsCompanion(')
+          ..write('id: $id, ')
+          ..write('fileId: $fileId, ')
+          ..write('content: $content, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2811,6 +3850,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $WeightLogsTable weightLogs = $WeightLogsTable(this);
   late final $NutritionLogsTable nutritionLogs = $NutritionLogsTable(this);
   late final $UserGoalsTable userGoals = $UserGoalsTable(this);
+  late final $StorageFoldersTable storageFolders = $StorageFoldersTable(this);
+  late final $StorageFilesTable storageFiles = $StorageFilesTable(this);
+  late final $FileCommentsTable fileComments = $FileCommentsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2824,6 +3866,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     weightLogs,
     nutritionLogs,
     userGoals,
+    storageFolders,
+    storageFiles,
+    fileComments,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -2847,6 +3892,27 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('gym_logs', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'storage_folders',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('storage_folders', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'storage_folders',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('storage_files', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'storage_files',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('file_comments', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -5046,6 +6112,1144 @@ typedef $$UserGoalsTableProcessedTableManager =
       UserGoal,
       PrefetchHooks Function()
     >;
+typedef $$StorageFoldersTableCreateCompanionBuilder =
+    StorageFoldersCompanion Function({
+      Value<int> id,
+      required String name,
+      Value<int?> parentId,
+      Value<int?> color,
+      Value<DateTime> createdAt,
+    });
+typedef $$StorageFoldersTableUpdateCompanionBuilder =
+    StorageFoldersCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<int?> parentId,
+      Value<int?> color,
+      Value<DateTime> createdAt,
+    });
+
+final class $$StorageFoldersTableReferences
+    extends BaseReferences<_$AppDatabase, $StorageFoldersTable, StorageFolder> {
+  $$StorageFoldersTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $StorageFoldersTable _parentIdTable(_$AppDatabase db) =>
+      db.storageFolders.createAlias(
+        $_aliasNameGenerator(db.storageFolders.parentId, db.storageFolders.id),
+      );
+
+  $$StorageFoldersTableProcessedTableManager? get parentId {
+    final $_column = $_itemColumn<int>('parent_id');
+    if ($_column == null) return null;
+    final manager = $$StorageFoldersTableTableManager(
+      $_db,
+      $_db.storageFolders,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_parentIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$StorageFilesTable, List<StorageFile>>
+  _storageFilesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.storageFiles,
+    aliasName: $_aliasNameGenerator(
+      db.storageFolders.id,
+      db.storageFiles.folderId,
+    ),
+  );
+
+  $$StorageFilesTableProcessedTableManager get storageFilesRefs {
+    final manager = $$StorageFilesTableTableManager(
+      $_db,
+      $_db.storageFiles,
+    ).filter((f) => f.folderId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_storageFilesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$StorageFoldersTableFilterComposer
+    extends Composer<_$AppDatabase, $StorageFoldersTable> {
+  $$StorageFoldersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get color => $composableBuilder(
+    column: $table.color,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$StorageFoldersTableFilterComposer get parentId {
+    final $$StorageFoldersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.parentId,
+      referencedTable: $db.storageFolders,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StorageFoldersTableFilterComposer(
+            $db: $db,
+            $table: $db.storageFolders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> storageFilesRefs(
+    Expression<bool> Function($$StorageFilesTableFilterComposer f) f,
+  ) {
+    final $$StorageFilesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.storageFiles,
+      getReferencedColumn: (t) => t.folderId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StorageFilesTableFilterComposer(
+            $db: $db,
+            $table: $db.storageFiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$StorageFoldersTableOrderingComposer
+    extends Composer<_$AppDatabase, $StorageFoldersTable> {
+  $$StorageFoldersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get color => $composableBuilder(
+    column: $table.color,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$StorageFoldersTableOrderingComposer get parentId {
+    final $$StorageFoldersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.parentId,
+      referencedTable: $db.storageFolders,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StorageFoldersTableOrderingComposer(
+            $db: $db,
+            $table: $db.storageFolders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StorageFoldersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StorageFoldersTable> {
+  $$StorageFoldersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get color =>
+      $composableBuilder(column: $table.color, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$StorageFoldersTableAnnotationComposer get parentId {
+    final $$StorageFoldersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.parentId,
+      referencedTable: $db.storageFolders,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StorageFoldersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.storageFolders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> storageFilesRefs<T extends Object>(
+    Expression<T> Function($$StorageFilesTableAnnotationComposer a) f,
+  ) {
+    final $$StorageFilesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.storageFiles,
+      getReferencedColumn: (t) => t.folderId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StorageFilesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.storageFiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$StorageFoldersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StorageFoldersTable,
+          StorageFolder,
+          $$StorageFoldersTableFilterComposer,
+          $$StorageFoldersTableOrderingComposer,
+          $$StorageFoldersTableAnnotationComposer,
+          $$StorageFoldersTableCreateCompanionBuilder,
+          $$StorageFoldersTableUpdateCompanionBuilder,
+          (StorageFolder, $$StorageFoldersTableReferences),
+          StorageFolder,
+          PrefetchHooks Function({bool parentId, bool storageFilesRefs})
+        > {
+  $$StorageFoldersTableTableManager(
+    _$AppDatabase db,
+    $StorageFoldersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StorageFoldersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StorageFoldersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StorageFoldersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int?> parentId = const Value.absent(),
+                Value<int?> color = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => StorageFoldersCompanion(
+                id: id,
+                name: name,
+                parentId: parentId,
+                color: color,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                Value<int?> parentId = const Value.absent(),
+                Value<int?> color = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => StorageFoldersCompanion.insert(
+                id: id,
+                name: name,
+                parentId: parentId,
+                color: color,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$StorageFoldersTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({parentId = false, storageFilesRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (storageFilesRefs) db.storageFiles,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (parentId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.parentId,
+                                    referencedTable:
+                                        $$StorageFoldersTableReferences
+                                            ._parentIdTable(db),
+                                    referencedColumn:
+                                        $$StorageFoldersTableReferences
+                                            ._parentIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (storageFilesRefs)
+                        await $_getPrefetchedData<
+                          StorageFolder,
+                          $StorageFoldersTable,
+                          StorageFile
+                        >(
+                          currentTable: table,
+                          referencedTable: $$StorageFoldersTableReferences
+                              ._storageFilesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$StorageFoldersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).storageFilesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.folderId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$StorageFoldersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StorageFoldersTable,
+      StorageFolder,
+      $$StorageFoldersTableFilterComposer,
+      $$StorageFoldersTableOrderingComposer,
+      $$StorageFoldersTableAnnotationComposer,
+      $$StorageFoldersTableCreateCompanionBuilder,
+      $$StorageFoldersTableUpdateCompanionBuilder,
+      (StorageFolder, $$StorageFoldersTableReferences),
+      StorageFolder,
+      PrefetchHooks Function({bool parentId, bool storageFilesRefs})
+    >;
+typedef $$StorageFilesTableCreateCompanionBuilder =
+    StorageFilesCompanion Function({
+      Value<int> id,
+      required String name,
+      required String path,
+      required String type,
+      Value<int?> folderId,
+      Value<DateTime> createdAt,
+    });
+typedef $$StorageFilesTableUpdateCompanionBuilder =
+    StorageFilesCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<String> path,
+      Value<String> type,
+      Value<int?> folderId,
+      Value<DateTime> createdAt,
+    });
+
+final class $$StorageFilesTableReferences
+    extends BaseReferences<_$AppDatabase, $StorageFilesTable, StorageFile> {
+  $$StorageFilesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $StorageFoldersTable _folderIdTable(_$AppDatabase db) =>
+      db.storageFolders.createAlias(
+        $_aliasNameGenerator(db.storageFiles.folderId, db.storageFolders.id),
+      );
+
+  $$StorageFoldersTableProcessedTableManager? get folderId {
+    final $_column = $_itemColumn<int>('folder_id');
+    if ($_column == null) return null;
+    final manager = $$StorageFoldersTableTableManager(
+      $_db,
+      $_db.storageFolders,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_folderIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$FileCommentsTable, List<FileComment>>
+  _fileCommentsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.fileComments,
+    aliasName: $_aliasNameGenerator(db.storageFiles.id, db.fileComments.fileId),
+  );
+
+  $$FileCommentsTableProcessedTableManager get fileCommentsRefs {
+    final manager = $$FileCommentsTableTableManager(
+      $_db,
+      $_db.fileComments,
+    ).filter((f) => f.fileId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_fileCommentsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$StorageFilesTableFilterComposer
+    extends Composer<_$AppDatabase, $StorageFilesTable> {
+  $$StorageFilesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$StorageFoldersTableFilterComposer get folderId {
+    final $$StorageFoldersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.folderId,
+      referencedTable: $db.storageFolders,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StorageFoldersTableFilterComposer(
+            $db: $db,
+            $table: $db.storageFolders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> fileCommentsRefs(
+    Expression<bool> Function($$FileCommentsTableFilterComposer f) f,
+  ) {
+    final $$FileCommentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.fileComments,
+      getReferencedColumn: (t) => t.fileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FileCommentsTableFilterComposer(
+            $db: $db,
+            $table: $db.fileComments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$StorageFilesTableOrderingComposer
+    extends Composer<_$AppDatabase, $StorageFilesTable> {
+  $$StorageFilesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$StorageFoldersTableOrderingComposer get folderId {
+    final $$StorageFoldersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.folderId,
+      referencedTable: $db.storageFolders,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StorageFoldersTableOrderingComposer(
+            $db: $db,
+            $table: $db.storageFolders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StorageFilesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StorageFilesTable> {
+  $$StorageFilesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get path =>
+      $composableBuilder(column: $table.path, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$StorageFoldersTableAnnotationComposer get folderId {
+    final $$StorageFoldersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.folderId,
+      referencedTable: $db.storageFolders,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StorageFoldersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.storageFolders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> fileCommentsRefs<T extends Object>(
+    Expression<T> Function($$FileCommentsTableAnnotationComposer a) f,
+  ) {
+    final $$FileCommentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.fileComments,
+      getReferencedColumn: (t) => t.fileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FileCommentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.fileComments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$StorageFilesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StorageFilesTable,
+          StorageFile,
+          $$StorageFilesTableFilterComposer,
+          $$StorageFilesTableOrderingComposer,
+          $$StorageFilesTableAnnotationComposer,
+          $$StorageFilesTableCreateCompanionBuilder,
+          $$StorageFilesTableUpdateCompanionBuilder,
+          (StorageFile, $$StorageFilesTableReferences),
+          StorageFile,
+          PrefetchHooks Function({bool folderId, bool fileCommentsRefs})
+        > {
+  $$StorageFilesTableTableManager(_$AppDatabase db, $StorageFilesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StorageFilesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StorageFilesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StorageFilesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> path = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<int?> folderId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => StorageFilesCompanion(
+                id: id,
+                name: name,
+                path: path,
+                type: type,
+                folderId: folderId,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                required String path,
+                required String type,
+                Value<int?> folderId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => StorageFilesCompanion.insert(
+                id: id,
+                name: name,
+                path: path,
+                type: type,
+                folderId: folderId,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$StorageFilesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({folderId = false, fileCommentsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (fileCommentsRefs) db.fileComments,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (folderId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.folderId,
+                                    referencedTable:
+                                        $$StorageFilesTableReferences
+                                            ._folderIdTable(db),
+                                    referencedColumn:
+                                        $$StorageFilesTableReferences
+                                            ._folderIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (fileCommentsRefs)
+                        await $_getPrefetchedData<
+                          StorageFile,
+                          $StorageFilesTable,
+                          FileComment
+                        >(
+                          currentTable: table,
+                          referencedTable: $$StorageFilesTableReferences
+                              ._fileCommentsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$StorageFilesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).fileCommentsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.fileId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$StorageFilesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StorageFilesTable,
+      StorageFile,
+      $$StorageFilesTableFilterComposer,
+      $$StorageFilesTableOrderingComposer,
+      $$StorageFilesTableAnnotationComposer,
+      $$StorageFilesTableCreateCompanionBuilder,
+      $$StorageFilesTableUpdateCompanionBuilder,
+      (StorageFile, $$StorageFilesTableReferences),
+      StorageFile,
+      PrefetchHooks Function({bool folderId, bool fileCommentsRefs})
+    >;
+typedef $$FileCommentsTableCreateCompanionBuilder =
+    FileCommentsCompanion Function({
+      Value<int> id,
+      required int fileId,
+      required String content,
+      Value<DateTime> createdAt,
+    });
+typedef $$FileCommentsTableUpdateCompanionBuilder =
+    FileCommentsCompanion Function({
+      Value<int> id,
+      Value<int> fileId,
+      Value<String> content,
+      Value<DateTime> createdAt,
+    });
+
+final class $$FileCommentsTableReferences
+    extends BaseReferences<_$AppDatabase, $FileCommentsTable, FileComment> {
+  $$FileCommentsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $StorageFilesTable _fileIdTable(_$AppDatabase db) =>
+      db.storageFiles.createAlias(
+        $_aliasNameGenerator(db.fileComments.fileId, db.storageFiles.id),
+      );
+
+  $$StorageFilesTableProcessedTableManager get fileId {
+    final $_column = $_itemColumn<int>('file_id')!;
+
+    final manager = $$StorageFilesTableTableManager(
+      $_db,
+      $_db.storageFiles,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_fileIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$FileCommentsTableFilterComposer
+    extends Composer<_$AppDatabase, $FileCommentsTable> {
+  $$FileCommentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$StorageFilesTableFilterComposer get fileId {
+    final $$StorageFilesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.fileId,
+      referencedTable: $db.storageFiles,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StorageFilesTableFilterComposer(
+            $db: $db,
+            $table: $db.storageFiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FileCommentsTableOrderingComposer
+    extends Composer<_$AppDatabase, $FileCommentsTable> {
+  $$FileCommentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$StorageFilesTableOrderingComposer get fileId {
+    final $$StorageFilesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.fileId,
+      referencedTable: $db.storageFiles,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StorageFilesTableOrderingComposer(
+            $db: $db,
+            $table: $db.storageFiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FileCommentsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $FileCommentsTable> {
+  $$FileCommentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$StorageFilesTableAnnotationComposer get fileId {
+    final $$StorageFilesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.fileId,
+      referencedTable: $db.storageFiles,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StorageFilesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.storageFiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FileCommentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $FileCommentsTable,
+          FileComment,
+          $$FileCommentsTableFilterComposer,
+          $$FileCommentsTableOrderingComposer,
+          $$FileCommentsTableAnnotationComposer,
+          $$FileCommentsTableCreateCompanionBuilder,
+          $$FileCommentsTableUpdateCompanionBuilder,
+          (FileComment, $$FileCommentsTableReferences),
+          FileComment,
+          PrefetchHooks Function({bool fileId})
+        > {
+  $$FileCommentsTableTableManager(_$AppDatabase db, $FileCommentsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FileCommentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FileCommentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FileCommentsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> fileId = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => FileCommentsCompanion(
+                id: id,
+                fileId: fileId,
+                content: content,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int fileId,
+                required String content,
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => FileCommentsCompanion.insert(
+                id: id,
+                fileId: fileId,
+                content: content,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$FileCommentsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({fileId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (fileId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.fileId,
+                                referencedTable: $$FileCommentsTableReferences
+                                    ._fileIdTable(db),
+                                referencedColumn: $$FileCommentsTableReferences
+                                    ._fileIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$FileCommentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $FileCommentsTable,
+      FileComment,
+      $$FileCommentsTableFilterComposer,
+      $$FileCommentsTableOrderingComposer,
+      $$FileCommentsTableAnnotationComposer,
+      $$FileCommentsTableCreateCompanionBuilder,
+      $$FileCommentsTableUpdateCompanionBuilder,
+      (FileComment, $$FileCommentsTableReferences),
+      FileComment,
+      PrefetchHooks Function({bool fileId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5066,4 +7270,10 @@ class $AppDatabaseManager {
       $$NutritionLogsTableTableManager(_db, _db.nutritionLogs);
   $$UserGoalsTableTableManager get userGoals =>
       $$UserGoalsTableTableManager(_db, _db.userGoals);
+  $$StorageFoldersTableTableManager get storageFolders =>
+      $$StorageFoldersTableTableManager(_db, _db.storageFolders);
+  $$StorageFilesTableTableManager get storageFiles =>
+      $$StorageFilesTableTableManager(_db, _db.storageFiles);
+  $$FileCommentsTableTableManager get fileComments =>
+      $$FileCommentsTableTableManager(_db, _db.fileComments);
 }

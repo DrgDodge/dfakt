@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../providers/app_provider.dart';
 import '../database/database.dart';
 import 'settings_screen.dart';
+import 'storage_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -17,6 +18,13 @@ class DashboardScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('DFakt'),
+        leading: IconButton(
+          icon: const Icon(Icons.folder_open_rounded),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const StorageScreen()),
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),

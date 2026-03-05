@@ -66,9 +66,13 @@ class AppProvider with ChangeNotifier {
     final archive = ZipDecoder().decodeBytes(bytes);
     final dbFolder = await getApplicationDocumentsDirectory();
     final imagesDir = Directory(p.join(dbFolder.path, 'images'));
+    final storageDir = Directory(p.join(dbFolder.path, 'storage'));
     
     if (!await imagesDir.exists()) {
       await imagesDir.create(recursive: true);
+    }
+    if (!await storageDir.exists()) {
+      await storageDir.create(recursive: true);
     }
 
     // 1. Close DB and Clear Cache
@@ -110,6 +114,18 @@ class AppProvider with ChangeNotifier {
            } catch (e) {
              print("Failed to overwrite image $filename: $e");
            }
+        } else if (file.name.startsWith('storage/')) {
+           final filename = p.basename(file.name);
+           final outFile = File(p.join(storageDir.path, filename));
+           
+           try {
+             if (await outFile.exists()) {
+                try { await outFile.delete(); } catch (_) {}
+             }
+             await outFile.writeAsBytes(file.content as List<int>, flush: true);
+           } catch (e) {
+             print("Failed to overwrite storage file $filename: $e");
+           }
         }
       }
     }
@@ -119,6 +135,7 @@ class AppProvider with ChangeNotifier {
     
     // 4. Fix paths in DB to match new local path
     await _fixDatabaseImagePaths(imagesDir.path);
+    await _fixDatabaseStoragePaths(storageDir.path);
 
     await loadData();
     
@@ -173,6 +190,17 @@ class AppProvider with ChangeNotifier {
     }
   }
 
+  Future<void> _fixDatabaseStoragePaths(String localStoragePath) async {
+    final files = await _db.select(_db.storageFiles).get();
+    for (var f in files) {
+      final filename = p.basename(f.path);
+      final newPath = p.join(localStoragePath, filename);
+      if (f.path != newPath) {
+        await _db.updateFile(f.copyWith(path: newPath));
+      }
+    }
+  }
+
   Future<List<String>> getAllImagePaths() async {
     final paths = <String>[];
     // Reminders
@@ -185,30 +213,140 @@ class AppProvider with ChangeNotifier {
     for(var s in subs) {
       if (s.imagePath != null) paths.add(s.imagePath!);
     }
+    // Storage Files
+    final storageFiles = await _db.select(_db.storageFiles).get();
+    for(var f in storageFiles) {
+      paths.add(f.path);
+    }
     return paths;
   }
 
-  Future<String?> _saveImage(String? sourcePath) async {
+  Future<Map<String, String>> getAllFilesForSync() async {
+    final Map<String, String> files = {};
+    // Reminders
+    final reminders = await _db.select(_db.reminders).get();
+    for(var r in reminders) {
+      if (r.imagePath != null) files["images/${p.basename(r.imagePath!)}"] = r.imagePath!;
+    }
+    // SubReminders
+    final subs = await _db.select(_db.subReminders).get();
+    for(var s in subs) {
+      if (s.imagePath != null) files["images/${p.basename(s.imagePath!)}"] = s.imagePath!;
+    }
+    // Storage Files
+    final storageFiles = await _db.select(_db.storageFiles).get();
+    for(var f in storageFiles) {
+      files["storage/${p.basename(f.path)}"] = f.path;
+    }
+    return files;
+  }
+
+  Future<String?> _saveFile(String? sourcePath, String subDir) async {
     if (sourcePath == null) return null;
     try {
       final sourceFile = File(sourcePath);
       if (!await sourceFile.exists()) return sourcePath; // Fallback
 
       final appDir = await getApplicationDocumentsDirectory();
-      final imagesDir = Directory(p.join(appDir.path, 'images'));
-      if (!await imagesDir.exists()) {
-        await imagesDir.create(recursive: true);
+      final targetDir = Directory(p.join(appDir.path, subDir));
+      if (!await targetDir.exists()) {
+        await targetDir.create(recursive: true);
       }
 
       final filename = "${DateTime.now().millisecondsSinceEpoch}_${p.basename(sourcePath)}";
-      final newPath = p.join(imagesDir.path, filename);
+      final newPath = p.join(targetDir.path, filename);
       
       await sourceFile.copy(newPath);
       return newPath;
     } catch (e) {
-      print("Error saving image: $e");
+      print("Error saving file: $e");
       return sourcePath;
     }
+  }
+
+  Future<String?> _saveImage(String? sourcePath) async {
+    return _saveFile(sourcePath, 'images');
+  }
+
+  // --- Storage ---
+
+  Future<List<StorageFolder>> getFolders(int? parentId) => _db.getFoldersIn(parentId);
+  Future<List<StorageFile>> getFiles(int? folderId) => _db.getFilesIn(folderId);
+  
+  Future<void> addFolder(String name, int? parentId, [int? color]) async {
+    await _db.insertFolder(StorageFoldersCompanion(
+      name: drift.Value(name),
+      parentId: drift.Value(parentId),
+      color: drift.Value(color),
+    ));
+    notifyListeners();
+  }
+
+  Future<void> updateFolder(StorageFolder folder) async {
+    await _db.updateFolder(folder);
+    notifyListeners();
+  }
+
+  Future<void> moveFolderToFolder(int folderId, int? targetFolderId) async {
+    // Avoid cyclic moves superficially by ensuring target is not the folder itself
+    if (folderId == targetFolderId) return;
+    
+    final folder = await _db.getFolderById(folderId);
+    await _db.updateFolder(folder.copyWith(parentId: drift.Value(targetFolderId)));
+    notifyListeners();
+  }
+
+  Future<void> deleteFolder(int id) async {
+    await _db.deleteFolder(id);
+    notifyListeners();
+  }
+
+  Future<void> addFile(String name, String sourcePath, String type, int? folderId) async {
+    final savedPath = await _saveFile(sourcePath, 'storage');
+    if (savedPath != null) {
+      await _db.insertFile(StorageFilesCompanion(
+        name: drift.Value(name),
+        path: drift.Value(savedPath),
+        type: drift.Value(type),
+        folderId: drift.Value(folderId),
+      ));
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateFile(StorageFile entry) => _db.updateFile(entry);
+
+  Future<void> moveFileToFolder(int fileId, int? targetFolderId) async {
+    final file = await _db.getFileById(fileId);
+    await _db.updateFile(file.copyWith(folderId: drift.Value(targetFolderId)));
+    notifyListeners();
+  }
+
+  Future<void> deleteFile(int id) async {
+    final file = await _db.getFileById(id);
+    try {
+      final f = File(file.path);
+      if (await f.exists()) await f.delete();
+    } catch (e) {
+      print("Error deleting physical file: $e");
+    }
+    await _db.deleteFile(id);
+    notifyListeners();
+  }
+
+  Future<List<FileComment>> getComments(int fileId) => _db.getCommentsForFile(fileId);
+  
+  Future<void> addComment(int fileId, String content) async {
+    await _db.insertComment(FileCommentsCompanion(
+      fileId: drift.Value(fileId),
+      content: drift.Value(content),
+    ));
+    notifyListeners();
+  }
+
+  Future<void> deleteComment(int id) async {
+    await _db.deleteComment(id);
+    notifyListeners();
   }
 
   // Urgent Tasks (Sorted by Overdue -> Today -> Soon)

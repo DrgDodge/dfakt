@@ -2,6 +2,57 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:io';
 import 'package:share_plus/share_plus.dart';
+import 'package:file_picker/file_picker.dart';
+
+Future<void> saveFileToDevice(BuildContext context, String sourcePath, String fileName) async {
+  try {
+    final bytes = await File(sourcePath).readAsBytes();
+    String? savePath = await FilePicker.platform.saveFile(
+      dialogTitle: 'Save File',
+      fileName: fileName,
+      bytes: bytes,
+    );
+
+    if (savePath != null) {
+      // file_picker saveFile doesn't actually write the file on desktop platforms, it only returns the path
+      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        await File(savePath).writeAsBytes(bytes);
+      }
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('File saved successfully!')),
+        );
+      }
+    }
+  } catch (e) {
+    print("FilePicker saveFile error: $e");
+    // Fallback for Android if SAF/picker fails
+    if (Platform.isAndroid) {
+      try {
+        final dir = Directory('/storage/emulated/0/Download');
+        if (await dir.exists()) {
+          final destPath = '${dir.path}/$fileName';
+          await File(sourcePath).copy(destPath);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Saved to Downloads folder')),
+            );
+          }
+          return;
+        }
+      } catch (fallbackErr) {
+        print("Fallback save error: $fallbackErr");
+      }
+    }
+    
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save file: $e')),
+      );
+    }
+  }
+}
 
 class ImageViewer extends StatelessWidget {
   final String imagePath;
@@ -30,10 +81,11 @@ class ImageViewer extends StatelessWidget {
         child: InteractiveViewer(
           minScale: 0.1,
           maxScale: 5.0,
-          boundaryMargin: const EdgeInsets.all(double.infinity),
           child: Image.file(
             File(imagePath),
             fit: BoxFit.contain,
+            width: double.infinity,
+            height: double.infinity,
           ),
         ),
       ),

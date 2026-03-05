@@ -30,7 +30,7 @@ class DiscoveredDevice {
   int get hashCode => id.hashCode;
 }
 
-typedef Future<List<String>> ImagePathsCallback();
+typedef Future<Map<String, String>> SyncFilesCallback();
 
 class SyncService extends ChangeNotifier {
   static final SyncService _instance = SyncService._internal();
@@ -49,7 +49,7 @@ class SyncService extends ChangeNotifier {
   String _myDeviceName = "Unknown Device";
   String get myDeviceName => _myDeviceName;
 
-  ImagePathsCallback? getImagePathsCallback;
+  SyncFilesCallback? syncFilesCallback;
 
   bool get isBroadcasting => _isBroadcasting;
   bool get isDiscovering => _isDiscovering;
@@ -114,15 +114,14 @@ class SyncService extends ChangeNotifier {
         final dbBytes = await dbFile.readAsBytes();
         archive.addFile(ArchiveFile('dragonfakt.sqlite', dbBytes.length, dbBytes));
         
-        // Add Images
-        if (getImagePathsCallback != null) {
-           final imagePaths = await getImagePathsCallback!();
-           for (final path in imagePaths) {
-              final file = File(path);
+        // Add Files
+        if (syncFilesCallback != null) {
+           final filesMap = await syncFilesCallback!();
+           for (final entry in filesMap.entries) {
+              final file = File(entry.value);
               if (await file.exists()) {
                  final bytes = await file.readAsBytes();
-                 final name = "images/${p.basename(path)}";
-                 archive.addFile(ArchiveFile(name, bytes.length, bytes));
+                 archive.addFile(ArchiveFile(entry.key, bytes.length, bytes));
               }
            }
         }

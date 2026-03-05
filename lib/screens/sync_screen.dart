@@ -18,7 +18,7 @@ class _SyncScreenState extends State<SyncScreen> {
     final syncService = Provider.of<SyncService>(context, listen: false);
     final appProvider = Provider.of<AppProvider>(context, listen: false);
     
-    syncService.getImagePathsCallback = appProvider.getAllImagePaths;
+    syncService.syncFilesCallback = appProvider.getAllFilesForSync;
 
     syncService.init().then((_) {
       syncService.startDiscovery();

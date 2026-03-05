@@ -37,6 +37,15 @@ class _MaterialAppWithThemeState extends State<MaterialAppWithTheme> {
    @override
   void initState() {
     super.initState();
+    
+    // Initialize SyncService callback
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final appProvider = Provider.of<AppProvider>(context, listen: false);
+      final syncService = Provider.of<SyncService>(context, listen: false);
+      syncService.syncFilesCallback = appProvider.getAllFilesForSync;
+      syncService.init();
+    });
+
     if (Platform.isAndroid || Platform.isIOS) {
       HomeWidget.initiallyLaunchedFromHomeWidget().then(_handleLaunch);
       HomeWidget.widgetClicked.listen(_handleLaunch);
