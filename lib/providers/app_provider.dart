@@ -679,34 +679,43 @@ class AppProvider with ChangeNotifier {
     if (record == null) return;
     final userId = record.id;
 
-    // Fetch existing logs to prevent duplicates/allow updates
+    // Fetch existing logs
     final records = await pb.collection('fitness_logs').getFullList(
       filter: 'user = "$userId"',
     );
+
+    // Keep track of which PB records we've already matched to avoid double-syncing
+    final syncedIds = <String>{};
 
     // Sync Gym logs
     final gymLogs = await _db.getGymLogs();
     for (var gl in gymLogs) {
       final existing = records.where((r) => 
+        !syncedIds.contains(r.id) &&
         r.getStringValue('type') == 'gym' && 
         _isSameDate(r.getStringValue('date'), gl.log.date) &&
-        r.getStringValue('exercise_name') == gl.exercise.name
+        r.getDoubleValue('weight') == gl.log.weight &&
+        r.getIntValue('reps') == gl.log.reps
       ).firstOrNull;
 
-      final body = {
-        'user': userId,
-        'type': 'gym',
-        'date': gl.log.date.toUtc().toIso8601String(),
-        'exercise_name': gl.exercise.name,
-        'weight': gl.log.weight,
-        'reps': gl.log.reps,
-        'sets': gl.log.sets,
-      };
-
       if (existing != null) {
-        await pb.collection('fitness_logs').update(existing.id, body: body);
+        syncedIds.add(existing.id);
+        // Only update the name field if it's different/missing
+        if (existing.getStringValue('exercise_name') != gl.exercise.name) {
+          await pb.collection('fitness_logs').update(existing.id, body: {
+            'exercise_name': gl.exercise.name,
+          });
+        }
       } else {
-        await pb.collection('fitness_logs').create(body: body);
+        await pb.collection('fitness_logs').create(body: {
+          'user': userId,
+          'type': 'gym',
+          'date': gl.log.date.toUtc().toIso8601String(),
+          'exercise_name': gl.exercise.name,
+          'weight': gl.log.weight,
+          'reps': gl.log.reps,
+          'sets': gl.log.sets,
+        });
       }
     }
 
@@ -714,46 +723,61 @@ class AppProvider with ChangeNotifier {
     final weightLogs = await _db.getAllWeightLogs();
     for (var wl in weightLogs) {
       final existing = records.where((r) => 
+        !syncedIds.contains(r.id) &&
         r.getStringValue('type') == 'weight' && 
-        _isSameDate(r.getStringValue('date'), wl.date)
+        _isSameDate(r.getStringValue('date'), wl.date) &&
+        r.getDoubleValue('weight') == wl.weight
       ).firstOrNull;
 
-      final body = {
-        'user': userId,
-        'type': 'weight',
-        'date': wl.date.toUtc().toIso8601String(),
-        'weight': wl.weight,
-        'body_fat': wl.bodyFat ?? 0.0,
-      };
-
       if (existing != null) {
-        await pb.collection('fitness_logs').update(existing.id, body: body);
+        syncedIds.add(existing.id);
+        if (existing.getStringValue('exercise_name') != 'Weight') {
+          await pb.collection('fitness_logs').update(existing.id, body: {
+            'exercise_name': 'Weight',
+          });
+        }
       } else {
-        await pb.collection('fitness_logs').create(body: body);
+        await pb.collection('fitness_logs').create(body: {
+          'user': userId,
+          'type': 'weight',
+          'date': wl.date.toUtc().toIso8601String(),
+          'exercise_name': 'Weight',
+          'weight': wl.weight,
+          'body_fat': wl.bodyFat ?? 0.0,
+        });
       }
     }
 
     // Sync Nutrition logs
     final nutritionLogs = await _db.getAllNutritionLogs();
     for (var nl in nutritionLogs) {
+      final localName = nl.foodName ?? 'Nutrition';
       final existing = records.where((r) => 
+        !syncedIds.contains(r.id) &&
         r.getStringValue('type') == 'nutrition' && 
-        _isSameDate(r.getStringValue('date'), nl.date)
+        _isSameDate(r.getStringValue('date'), nl.date) &&
+        r.getIntValue('calories') == nl.calories &&
+        r.getIntValue('protein') == nl.protein &&
+        r.getIntValue('carbs') == nl.carbs
       ).firstOrNull;
 
-      final body = {
-        'user': userId,
-        'type': 'nutrition',
-        'date': nl.date.toUtc().toIso8601String(),
-        'calories': nl.calories,
-        'protein': nl.protein,
-        'carbs': nl.carbs,
-      };
-
       if (existing != null) {
-        await pb.collection('fitness_logs').update(existing.id, body: body);
+        syncedIds.add(existing.id);
+        if (existing.getStringValue('exercise_name') != localName) {
+          await pb.collection('fitness_logs').update(existing.id, body: {
+            'exercise_name': localName,
+          });
+        }
       } else {
-        await pb.collection('fitness_logs').create(body: body);
+        await pb.collection('fitness_logs').create(body: {
+          'user': userId,
+          'type': 'nutrition',
+          'date': nl.date.toUtc().toIso8601String(),
+          'exercise_name': localName,
+          'calories': nl.calories,
+          'protein': nl.protein,
+          'carbs': nl.carbs,
+        });
       }
     }
   }
