@@ -63,6 +63,18 @@ class NutritionLogs extends Table {
   IntColumn get calories => integer()();
   IntColumn get protein => integer()();
   IntColumn get carbs => integer()();
+  TextColumn get foodName => text().nullable()();
+}
+
+class FoodItems extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get barcode => text().unique()();
+  TextColumn get name => text()();
+  RealColumn get caloriesPer100g => real()();
+  RealColumn get proteinPer100g => real()();
+  RealColumn get carbsPer100g => real()();
+  RealColumn get lastPortion => real().withDefault(const Constant(100.0))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
 class UserGoals extends Table {
@@ -85,6 +97,7 @@ class StorageFiles extends Table {
   TextColumn get name => text()();
   TextColumn get path => text()();
   TextColumn get type => text()(); // 'image' or 'pdf'
+  TextColumn get thumbnailPath => text().nullable()();
   IntColumn get folderId => integer().nullable().references(StorageFolders, #id, onDelete: KeyAction.cascade)();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
@@ -106,6 +119,7 @@ class FileComments extends Table {
   GymLogs,
   WeightLogs,
   NutritionLogs,
+  FoodItems,
   UserGoals,
   StorageFolders,
   StorageFiles,
@@ -115,7 +129,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(connect());
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -155,14 +169,33 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(storageFiles);
         await m.createTable(fileComments);
       }
-      if (from == 9) {
+      if (from < 10) {
         await m.addColumn(storageFolders, storageFolders.color);
+      }
+      if (from < 11) {
+        await m.addColumn(storageFiles, storageFiles.thumbnailPath);
+      }
+      if (from < 12) {
+        await m.createTable(foodItems);
+      }
+      if (from < 13) {
+        await m.addColumn(nutritionLogs, nutritionLogs.foodName as GeneratedColumn);
+        await m.addColumn(foodItems, foodItems.lastPortion as GeneratedColumn);
       }
     },
   );
 
   // --- Queries ---
   
+  // Nutrition & Food Items
+  Future<List<FoodItem>> getAllFoodItems() => select(foodItems).get();
+  Future<FoodItem?> getFoodByBarcode(String barcode) => 
+    (select(foodItems)..where((tbl) => tbl.barcode.equals(barcode))).getSingleOrNull();
+  Future<FoodItem> getFoodById(int id) => (select(foodItems)..where((tbl) => tbl.id.equals(id))).getSingle();
+  Future<int> insertFoodItem(FoodItemsCompanion entry) => into(foodItems).insert(entry);
+  Future<bool> updateFoodItem(FoodItem entry) => update(foodItems).replace(entry);
+  Future<int> deleteFoodItem(int id) => (delete(foodItems)..where((tbl) => tbl.id.equals(id))).go();
+
   // Storage Queries
   Future<List<StorageFolder>> getFoldersIn(int? parentId) {
     if (parentId == null) {
@@ -170,12 +203,26 @@ class AppDatabase extends _$AppDatabase {
     }
     return (select(storageFolders)..where((tbl) => tbl.parentId.equals(parentId))).get();
   }
+
+  Stream<List<StorageFolder>> watchFoldersIn(int? parentId) {
+    if (parentId == null) {
+      return (select(storageFolders)..where((tbl) => tbl.parentId.isNull())).watch();
+    }
+    return (select(storageFolders)..where((tbl) => tbl.parentId.equals(parentId))).watch();
+  }
   
   Future<List<StorageFile>> getFilesIn(int? folderId) {
     if (folderId == null) {
       return (select(storageFiles)..where((tbl) => tbl.folderId.isNull())).get();
     }
     return (select(storageFiles)..where((tbl) => tbl.folderId.equals(folderId))).get();
+  }
+
+  Stream<List<StorageFile>> watchFilesIn(int? folderId) {
+    if (folderId == null) {
+      return (select(storageFiles)..where((tbl) => tbl.folderId.isNull())).watch();
+    }
+    return (select(storageFiles)..where((tbl) => tbl.folderId.equals(folderId))).watch();
   }
   
   Future<int> insertFolder(StorageFoldersCompanion entry) => into(storageFolders).insert(entry);

@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:pdfx/pdfx.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:share_plus/share_plus.dart';
 import '../providers/app_provider.dart';
@@ -26,9 +26,16 @@ class _StorageScreenState extends State<StorageScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AppProvider>().generateMissingThumbnails();
+    });
   }
 
   int? get _currentFolderId => _path.isEmpty ? null : _path.last.id;
+
+  void _onPathChanged() {
+    context.read<AppProvider>().generateMissingThumbnails();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +47,7 @@ class _StorageScreenState extends State<StorageScreen> {
         if (!didPop && _path.isNotEmpty) {
           setState(() {
             _path.removeLast();
+            _onPathChanged();
           });
         }
       },
@@ -49,7 +57,10 @@ class _StorageScreenState extends State<StorageScreen> {
           leading: _path.isNotEmpty 
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _path.removeLast()),
+                onPressed: () => setState(() {
+                  _path.removeLast();
+                  _onPathChanged();
+                }),
               )
             : IconButton(
                 icon: const Icon(Icons.close),
@@ -60,39 +71,40 @@ class _StorageScreenState extends State<StorageScreen> {
           children: [
             _buildBreadcrumbs(),
             Expanded(
-              child: FutureBuilder<List<dynamic>>(
-                future: Future.wait([
-                  provider.getFolders(_currentFolderId),
-                  provider.getFiles(_currentFolderId),
-                ]),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (!snapshot.hasData) return const Center(child: Text("Empty"));
-
-                  final folders = snapshot.data![0] as List<StorageFolder>;
-                  final files = snapshot.data![1] as List<StorageFile>;
-
-                  if (folders.isEmpty && files.isEmpty) {
-                    return const Center(child: Text("This folder is empty", style: TextStyle(color: Colors.grey)));
-                  }
-
-                  return GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 150,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      childAspectRatio: 0.8,
-                    ),
-                    itemCount: folders.length + files.length,
-                    itemBuilder: (context, index) {
-                      if (index < folders.length) {
-                        return _buildFolderItem(context, folders[index]);
-                      } else {
-                        return _buildFileItem(context, files[index - folders.length]);
+              child: StreamBuilder<List<StorageFolder>>(
+                stream: provider.watchFolders(_currentFolderId),
+                builder: (context, folderSnapshot) {
+                  return StreamBuilder<List<StorageFile>>(
+                    stream: provider.watchFiles(_currentFolderId),
+                    builder: (context, fileSnapshot) {
+                      if (folderSnapshot.connectionState == ConnectionState.waiting && !folderSnapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
                       }
+
+                      final folders = folderSnapshot.data ?? [];
+                      final files = fileSnapshot.data ?? [];
+
+                      if (folders.isEmpty && files.isEmpty) {
+                        return const Center(child: Text("This folder is empty", style: TextStyle(color: Colors.grey)));
+                      }
+
+                      return GridView.builder(
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 150,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                          childAspectRatio: 0.8,
+                        ),
+                        itemCount: folders.length + files.length,
+                        itemBuilder: (context, index) {
+                          if (index < folders.length) {
+                            return _buildFolderItem(context, folders[index]);
+                          } else {
+                            return _buildFileItem(context, files[index - folders.length]);
+                          }
+                        },
+                      );
                     },
                   );
                 },
@@ -144,11 +156,16 @@ class _StorageScreenState extends State<StorageScreen> {
                 } else if (data is StorageFolder) {
                   context.read<AppProvider>().moveFolderToFolder(data.id, null);
                 }
-                setState(() {});
+                setState(() {
+                  _onPathChanged();
+                });
               },
               builder: (context, candidateData, rejectedData) {
                 return GestureDetector(
-                  onTap: () => setState(() => _path.clear()),
+                  onTap: () => setState(() {
+                    _path.clear();
+                    _onPathChanged();
+                  }),
                   child: Text("Root", style: TextStyle(
                     color: candidateData.isNotEmpty ? Colors.white : const Color(0xFF80CBC4), 
                     fontWeight: FontWeight.bold
@@ -172,11 +189,17 @@ class _StorageScreenState extends State<StorageScreen> {
                   } else if (data is StorageFolder) {
                     context.read<AppProvider>().moveFolderToFolder(data.id, _path[i].id);
                   }
-                  setState(() => _path = _path.sublist(0, i + 1));
+                  setState(() {
+                    _path = _path.sublist(0, i + 1);
+                    _onPathChanged();
+                  });
                 },
                 builder: (context, candidateData, rejectedData) {
                   return GestureDetector(
-                    onTap: () => setState(() => _path = _path.sublist(0, i + 1)),
+                    onTap: () => setState(() {
+                      _path = _path.sublist(0, i + 1);
+                      _onPathChanged();
+                    }),
                     child: Text(_path[i].name, style: TextStyle(
                       color: candidateData.isNotEmpty ? Colors.white : const Color(0xFF80CBC4), 
                       fontWeight: FontWeight.bold
@@ -208,7 +231,9 @@ class _StorageScreenState extends State<StorageScreen> {
         } else if (data is StorageFolder) {
           context.read<AppProvider>().moveFolderToFolder(data.id, folder.id);
         }
-        setState(() {}); // Refresh view
+        setState(() {
+          _onPathChanged();
+        }); // Refresh view
       },
       builder: (context, candidateData, rejectedData) {
         final isHovered = candidateData.isNotEmpty;
@@ -216,7 +241,10 @@ class _StorageScreenState extends State<StorageScreen> {
         return Stack(
           children: [
             InkWell(
-              onTap: () => setState(() => _path.add(folder)),
+              onTap: () => setState(() {
+                _path.add(folder);
+                _onPathChanged();
+              }),
               borderRadius: BorderRadius.circular(12),
               child: Container(
                 decoration: BoxDecoration(
@@ -299,41 +327,25 @@ class _StorageScreenState extends State<StorageScreen> {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => FileViewerScreen(file: file)),
-          ).then((_) => setState(() {})),
+          ),
           borderRadius: BorderRadius.circular(12),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (file.type == 'image')
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      File(file.path),
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                    ),
-                  ),
-                )
-              else
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: IgnorePointer(
-                      child: SfPdfViewer.file(
-                        File(file.path),
-                        canShowScrollHead: false,
-                        canShowScrollStatus: false,
-                        enableDoubleTapZooming: false,
-                        enableTextSelection: false,
-                        pageLayoutMode: PdfPageLayoutMode.single,
-                        initialZoomLevel: 0.1,
-                      ),
-                    ),
-                  ),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: file.thumbnailPath != null 
+                    ? Image.file(
+                        File(file.thumbnailPath!),
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        errorBuilder: (context, error, stackTrace) => _buildFallbackPreview(file),
+                      )
+                    : _buildFallbackPreview(file),
                 ),
+              ),
               const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4.0),
@@ -558,6 +570,24 @@ class _StorageScreenState extends State<StorageScreen> {
       ),
     );
   }
+
+  Widget _buildFallbackPreview(StorageFile file) {
+    if (file.type == 'image') {
+      return Image.file(
+        File(file.path),
+        fit: BoxFit.cover,
+        width: double.infinity,
+        errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+      );
+    } else {
+      return Container(
+        color: Colors.white10,
+        child: const Center(
+          child: Icon(Icons.picture_as_pdf, size: 48, color: Colors.redAccent),
+        ),
+      );
+    }
+  }
 }
 
 class FileViewerScreen extends StatefulWidget {
@@ -571,6 +601,24 @@ class FileViewerScreen extends StatefulWidget {
 
 class _FileViewerScreenState extends State<FileViewerScreen> {
   final _commentController = TextEditingController();
+  PdfControllerPinch? _pdfController;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.file.type == 'pdf') {
+      _pdfController = PdfControllerPinch(
+        document: PdfDocument.openFile(widget.file.path),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    _pdfController?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -610,7 +658,9 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
             child: Container(
               color: Colors.black,
               child: widget.file.type == 'pdf'
-                  ? SfPdfViewer.file(File(widget.file.path))
+                  ? PdfViewPinch(
+                      controller: _pdfController!,
+                    )
                   : InteractiveViewer(
                       minScale: 0.1,
                       maxScale: 5.0,

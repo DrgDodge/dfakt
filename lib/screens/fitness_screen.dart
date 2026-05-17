@@ -6,6 +6,7 @@ import 'package:drift/drift.dart' as drift;
 import '../providers/app_provider.dart';
 import '../database/database.dart'; 
 import 'settings_screen.dart';
+import 'barcode_scanner_screen.dart';
 import '../widgets/ui_helpers.dart';
 
 class FitnessScreen extends StatelessWidget {
@@ -47,121 +48,153 @@ class FitnessScreen extends StatelessWidget {
   }
 }
 
-class WorkoutTab extends StatelessWidget {
+class WorkoutTab extends StatefulWidget {
   const WorkoutTab({super.key});
+
+  @override
+  State<WorkoutTab> createState() => _WorkoutTabState();
+}
+
+class _WorkoutTabState extends State<WorkoutTab> {
+  String _searchQuery = "";
 
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<AppProvider>(context);
 
+    // Filter logs by Exercise name
+    final filteredLogs = _searchQuery.isEmpty 
+        ? provider.gymLogs 
+        : provider.gymLogs.where((l) => l.exercise.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+
     // Group logs by Date, then by Exercise
-    final groupedLogs = groupBy(provider.gymLogs, (log) => DateFormat('yyyy-MM-dd').format(log.log.date));
+    final groupedLogs = groupBy(filteredLogs, (log) => DateFormat('yyyy-MM-dd').format(log.log.date));
 
     return Scaffold(
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddWorkoutDialog(context, provider),
         child: const Icon(Icons.add),
       ),
-      body: groupedLogs.isEmpty ? 
-      const Center(child: Text("Start your journey by logging a workout!")) :
-      ListView.builder(
-        itemCount: groupedLogs.length,
-        itemBuilder: (context, index) {
-          final dateKey = groupedLogs.keys.toList()[index];
-          final logsForDay = groupedLogs[dateKey]!;
-          
-          // Group by Exercise within the day
-          final logsByExercise = groupBy(logsForDay, (l) => l.exercise.name);
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: "Search workouts...",
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF80CBC4)),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.05),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              onChanged: (val) => setState(() => _searchQuery = val),
+            ),
+          ),
+          Expanded(
+            child: groupedLogs.isEmpty ? 
+            const Center(child: Text("No workouts found.")) :
+            ListView.builder(
+              itemCount: groupedLogs.length,
+              itemBuilder: (context, index) {
+                final dateKey = groupedLogs.keys.toList()[index];
+                final logsForDay = groupedLogs[dateKey]!;
+                
+                // Group by Exercise within the day
+                final logsByExercise = groupBy(logsForDay, (l) => l.exercise.name);
 
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2C2C2C),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        DateFormat.yMMMd().format(DateTime.parse(dateKey)),
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF80CBC4)),
-                      ),
-                      Text(
-                        "Score: ${(logsForDay.map((l) => l.log.weight * l.log.reps).sum / logsForDay.length / 10).toStringAsFixed(1)}",
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70),
-                      ),
-                    ],
-                  ),
-                ),
-                ...logsByExercise.entries.map((entry) {
-                  final exerciseName = entry.key;
-                  final sets = entry.value;
-                  final exercise = sets.first.exercise;
-                  
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2C2C2C),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(exerciseName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                            PopupMenuButton<String>(
-                               onSelected: (value) {
-                                 if (value == 'delete_all') {
-                                   _confirmDeleteExerciseLogs(context, provider, exercise.id, DateTime.parse(dateKey));
-                                 } else if (value == 'edit_name') {
-                                   _showEditExerciseNameDialog(context, provider, exercise);
-                                 }
-                               },
-                               itemBuilder: (context) => [
-                                 const PopupMenuItem(value: 'edit_name', child: Text("Rename Exercise")),
-                                 const PopupMenuItem(value: 'delete_all', child: Text("Delete All Sets")),
-                               ],
-                               child: const Icon(Icons.more_vert, size: 20, color: Colors.grey),
-                            )
+                            Text(
+                              DateFormat.yMMMd().format(DateTime.parse(dateKey)),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF80CBC4)),
+                            ),
+                            Text(
+                              "Score: ${(logsForDay.map((l) => l.log.weight * l.log.reps).sum / logsForDay.length / 10).toStringAsFixed(1)}",
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70),
+                            ),
                           ],
                         ),
-                        const Divider(height: 12),
-                        ...sets.mapIndexed((i, setLog) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4.0),
-                          child: Row(
-                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                             children: [
-                               Text('Set ${i+1}: ${setLog.log.weight}kg x ${setLog.log.reps} reps', style: const TextStyle(fontSize: 15)),
-                               PopupMenuButton<String>(
-                                 onSelected: (value) {
-                                   if (value == 'edit') {
-                                     _showEditSetDialog(context, provider, setLog.log);
-                                   } else if (value == 'delete') {
-                                     provider.deleteGymLog(setLog.log.id);
-                                   }
-                                 },
-                                 itemBuilder: (context) => [
-                                   const PopupMenuItem(value: 'edit', child: Text("Edit")),
-                                   const PopupMenuItem(value: 'delete', child: Text("Delete")),
-                                 ],
-                                 child: const Icon(Icons.more_vert, size: 18, color: Colors.grey),
-                               )
-                             ],
+                      ),
+                      ...logsByExercise.entries.map((entry) {
+                        final exerciseName = entry.key;
+                        final sets = entry.value;
+                        final exercise = sets.first.exercise;
+                        
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(exerciseName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                                  PopupMenuButton<String>(
+                                     onSelected: (value) {
+                                       if (value == 'delete_all') {
+                                         _confirmDeleteExerciseLogs(context, provider, exercise.id, DateTime.parse(dateKey));
+                                       } else if (value == 'edit_name') {
+                                         _showEditExerciseNameDialog(context, provider, exercise);
+                                       }
+                                     },
+                                     itemBuilder: (context) => [
+                                       const PopupMenuItem(value: 'edit_name', child: Text("Rename Exercise")),
+                                       const PopupMenuItem(value: 'delete_all', child: Text("Delete All Sets")),
+                                     ],
+                                     child: const Icon(Icons.more_vert, size: 20, color: Colors.grey),
+                                  )
+                                ],
+                              ),
+                              const Divider(height: 12),
+                              ...sets.mapIndexed((i, setLog) => Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                child: Row(
+                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                   children: [
+                                     Text('Set ${i+1}: ${setLog.log.weight}kg x ${setLog.log.reps} reps', style: const TextStyle(fontSize: 15)),
+                                     PopupMenuButton<String>(
+                                       onSelected: (value) {
+                                         if (value == 'edit') {
+                                           _showEditSetDialog(context, provider, setLog.log);
+                                         } else if (value == 'delete') {
+                                           provider.deleteGymLog(setLog.log.id);
+                                         }
+                                       },
+                                       itemBuilder: (context) => [
+                                         const PopupMenuItem(value: 'edit', child: Text("Edit")),
+                                         const PopupMenuItem(value: 'delete', child: Text("Delete")),
+                                       ],
+                                       child: const Icon(Icons.more_vert, size: 18, color: Colors.grey),
+                                     )
+                                   ],
+                                ),
+                              )),
+                              const SizedBox(height: 8),
+                            ],
                           ),
-                        )),
-                        const SizedBox(height: 8),
-                      ],
-                    ),
-                  );
-                }),
-              ],
+                        );
+                      }),
+                    ],
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -517,9 +550,14 @@ class WeightTab extends StatelessWidget {
   }
 }
 
-class NutritionTab extends StatelessWidget {
+class NutritionTab extends StatefulWidget {
   const NutritionTab({super.key});
 
+  @override
+  State<NutritionTab> createState() => _NutritionTabState();
+}
+
+class _NutritionTabState extends State<NutritionTab> {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<AppProvider>(context);
@@ -650,7 +688,16 @@ class NutritionTab extends StatelessWidget {
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   child: ListTile(
-                    title: Text('${log.calories} kcal', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    onTap: log.foodName != null 
+                      ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())) 
+                      : null,
+                    title: Row(
+                      children: [
+                        Expanded(child: Text('${log.calories} kcal', style: const TextStyle(fontWeight: FontWeight.bold))),
+                        if (log.foodName != null)
+                          Text(log.foodName!, style: const TextStyle(fontSize: 12, color: Color(0xFF80CBC4), fontStyle: FontStyle.italic)),
+                      ],
+                    ),
                     subtitle: Text('P: ${log.protein}g, C: ${log.carbs}g'),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -672,9 +719,25 @@ class NutritionTab extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddNutritionDialog(context, provider),
-        child: const Icon(Icons.add),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.small(
+            heroTag: "barcodeBtn",
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const BarcodeScannerScreen()),
+            ),
+            backgroundColor: const Color(0xFF2C2C2C),
+            child: const Icon(Icons.qr_code_scanner, color: Color(0xFF80CBC4)),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton(
+            heroTag: "addNutritionBtn",
+            onPressed: () => _showAddNutritionDialog(context, provider),
+            child: const Icon(Icons.add),
+          ),
+        ],
       ),
     );
   }

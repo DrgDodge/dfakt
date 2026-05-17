@@ -7,6 +7,8 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:archive/archive.dart';
+import 'package:image/image.dart' as img;
+import 'package:pdfx/pdfx.dart';
 
 // UI Helpers to map Database classes to UI needs
 class ReminderWithSubs {
@@ -272,6 +274,9 @@ class AppProvider with ChangeNotifier {
 
   Future<List<StorageFolder>> getFolders(int? parentId) => _db.getFoldersIn(parentId);
   Future<List<StorageFile>> getFiles(int? folderId) => _db.getFilesIn(folderId);
+
+  Stream<List<StorageFolder>> watchFolders(int? parentId) => _db.watchFoldersIn(parentId);
+  Stream<List<StorageFile>> watchFiles(int? folderId) => _db.watchFilesIn(folderId);
   
   Future<void> addFolder(String name, int? parentId, [int? color]) async {
     await _db.insertFolder(StorageFoldersCompanion(
@@ -304,14 +309,72 @@ class AppProvider with ChangeNotifier {
   Future<void> addFile(String name, String sourcePath, String type, int? folderId) async {
     final savedPath = await _saveFile(sourcePath, 'storage');
     if (savedPath != null) {
+      final thumbPath = await _generateThumbnail(savedPath, type);
       await _db.insertFile(StorageFilesCompanion(
         name: drift.Value(name),
         path: drift.Value(savedPath),
         type: drift.Value(type),
+        thumbnailPath: drift.Value(thumbPath),
         folderId: drift.Value(folderId),
       ));
       notifyListeners();
     }
+  }
+
+  Future<void> generateMissingThumbnails() async {
+    final files = await _db.select(_db.storageFiles).get();
+    bool updated = false;
+    for (var f in files) {
+      if (f.thumbnailPath == null || !await File(f.thumbnailPath!).exists()) {
+        final thumbPath = await _generateThumbnail(f.path, f.type);
+        if (thumbPath != null) {
+          await _db.updateFile(f.copyWith(thumbnailPath: drift.Value(thumbPath)));
+          updated = true;
+        }
+      }
+    }
+    if (updated) notifyListeners();
+  }
+
+  Future<String?> _generateThumbnail(String sourcePath, String type) async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final thumbDir = Directory(p.join(appDir.path, 'storage', 'thumbnails'));
+      if (!await thumbDir.exists()) {
+        await thumbDir.create(recursive: true);
+      }
+
+      final fileName = "${DateTime.now().millisecondsSinceEpoch}_${p.basenameWithoutExtension(sourcePath)}";
+      final thumbPath = p.join(thumbDir.path, "${fileName}_thumb.jpg");
+
+      if (type == 'image') {
+        final bytes = await File(sourcePath).readAsBytes();
+        final image = img.decodeImage(bytes);
+        if (image == null) return null;
+
+        // Resize the image to a smaller version for the preview
+        final thumbnail = img.copyResize(image, width: 250);
+        await File(thumbPath).writeAsBytes(img.encodeJpg(thumbnail, quality: 75));
+        return thumbPath;
+      } else if (type == 'pdf') {
+        final document = await PdfDocument.openFile(sourcePath);
+        final page = await document.getPage(1);
+        final pageImage = await page.render(
+          width: page.width * 0.5,
+          height: page.height * 0.5,
+          format: PdfPageImageFormat.jpeg,
+          quality: 75,
+        );
+        if (pageImage == null) return null;
+        await File(thumbPath).writeAsBytes(pageImage.bytes);
+        await page.close();
+        await document.close();
+        return thumbPath;
+      }
+    } catch (e) {
+      print("Error generating thumbnail: $e");
+    }
+    return null;
   }
 
   Future<void> updateFile(StorageFile entry) => _db.updateFile(entry);
@@ -327,6 +390,11 @@ class AppProvider with ChangeNotifier {
     try {
       final f = File(file.path);
       if (await f.exists()) await f.delete();
+      
+      if (file.thumbnailPath != null) {
+        final t = File(file.thumbnailPath!);
+        if (await t.exists()) await t.delete();
+      }
     } catch (e) {
       print("Error deleting physical file: $e");
     }
@@ -904,12 +972,13 @@ class AppProvider with ChangeNotifier {
     _nutritionLogs = await _db.getAllNutritionLogs();
   }
 
-  Future<void> addNutritionLog(int calories, int protein, int carbs, DateTime date) async {
+  Future<void> addNutritionLog(int calories, int protein, int carbs, DateTime date, {String? foodName}) async {
     await _db.insertNutritionLog(NutritionLogsCompanion(
         date: drift.Value(date),
         calories: drift.Value(calories),
         protein: drift.Value(protein),
-        carbs: drift.Value(carbs)
+        carbs: drift.Value(carbs),
+        foodName: drift.Value(foodName),
     ));
     await _loadNutritionLogs();
     notifyListeners();
@@ -924,6 +993,46 @@ class AppProvider with ChangeNotifier {
   Future<void> deleteNutritionLog(int id) async {
     await _db.deleteNutritionLog(id);
     await _loadNutritionLogs();
+    notifyListeners();
+  }
+
+  // --- Food Items (Barcode) ---
+
+  Future<FoodItem?> getFoodByBarcode(String barcode) => _db.getFoodByBarcode(barcode);
+  Future<List<FoodItem>> getAllFoodItems() => _db.getAllFoodItems();
+
+  Future<void> addFoodItem({
+    required String barcode,
+    required String name,
+    required double caloriesPer100g,
+    required double proteinPer100g,
+    required double carbsPer100g,
+    double lastPortion = 100.0,
+  }) async {
+    await _db.insertFoodItem(FoodItemsCompanion(
+      barcode: drift.Value(barcode),
+      name: drift.Value(name),
+      caloriesPer100g: drift.Value(caloriesPer100g),
+      proteinPer100g: drift.Value(proteinPer100g),
+      carbsPer100g: drift.Value(carbsPer100g),
+      lastPortion: drift.Value(lastPortion),
+    ));
+    notifyListeners();
+  }
+
+  Future<void> updateLastPortion(int foodId, double portion) async {
+    final food = await _db.getFoodById(foodId);
+    await _db.updateFoodItem(food.copyWith(lastPortion: portion));
+    notifyListeners();
+  }
+
+  Future<void> updateFoodItem(FoodItem food) async {
+    await _db.updateFoodItem(food);
+    notifyListeners();
+  }
+
+  Future<void> deleteFoodItem(int id) async {
+    await _db.deleteFoodItem(id);
     notifyListeners();
   }
 }

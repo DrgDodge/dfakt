@@ -6,6 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   bonsoir_windows
   connectivity_plus
   file_selector_windows
+  pdfx
   share_plus
   sqlite3_flutter_libs
   syncfusion_pdfviewer_windows

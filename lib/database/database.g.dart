@@ -2258,8 +2258,26 @@ class $NutritionLogsTable extends NutritionLogs
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _foodNameMeta = const VerificationMeta(
+    'foodName',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, date, calories, protein, carbs];
+  late final GeneratedColumn<String> foodName = GeneratedColumn<String>(
+    'food_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    date,
+    calories,
+    protein,
+    carbs,
+    foodName,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2307,6 +2325,12 @@ class $NutritionLogsTable extends NutritionLogs
     } else if (isInserting) {
       context.missing(_carbsMeta);
     }
+    if (data.containsKey('food_name')) {
+      context.handle(
+        _foodNameMeta,
+        foodName.isAcceptableOrUnknown(data['food_name']!, _foodNameMeta),
+      );
+    }
     return context;
   }
 
@@ -2336,6 +2360,10 @@ class $NutritionLogsTable extends NutritionLogs
         DriftSqlType.int,
         data['${effectivePrefix}carbs'],
       )!,
+      foodName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}food_name'],
+      ),
     );
   }
 
@@ -2351,12 +2379,14 @@ class NutritionLog extends DataClass implements Insertable<NutritionLog> {
   final int calories;
   final int protein;
   final int carbs;
+  final String? foodName;
   const NutritionLog({
     required this.id,
     required this.date,
     required this.calories,
     required this.protein,
     required this.carbs,
+    this.foodName,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2366,6 +2396,9 @@ class NutritionLog extends DataClass implements Insertable<NutritionLog> {
     map['calories'] = Variable<int>(calories);
     map['protein'] = Variable<int>(protein);
     map['carbs'] = Variable<int>(carbs);
+    if (!nullToAbsent || foodName != null) {
+      map['food_name'] = Variable<String>(foodName);
+    }
     return map;
   }
 
@@ -2376,6 +2409,9 @@ class NutritionLog extends DataClass implements Insertable<NutritionLog> {
       calories: Value(calories),
       protein: Value(protein),
       carbs: Value(carbs),
+      foodName: foodName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(foodName),
     );
   }
 
@@ -2390,6 +2426,7 @@ class NutritionLog extends DataClass implements Insertable<NutritionLog> {
       calories: serializer.fromJson<int>(json['calories']),
       protein: serializer.fromJson<int>(json['protein']),
       carbs: serializer.fromJson<int>(json['carbs']),
+      foodName: serializer.fromJson<String?>(json['foodName']),
     );
   }
   @override
@@ -2401,6 +2438,7 @@ class NutritionLog extends DataClass implements Insertable<NutritionLog> {
       'calories': serializer.toJson<int>(calories),
       'protein': serializer.toJson<int>(protein),
       'carbs': serializer.toJson<int>(carbs),
+      'foodName': serializer.toJson<String?>(foodName),
     };
   }
 
@@ -2410,12 +2448,14 @@ class NutritionLog extends DataClass implements Insertable<NutritionLog> {
     int? calories,
     int? protein,
     int? carbs,
+    Value<String?> foodName = const Value.absent(),
   }) => NutritionLog(
     id: id ?? this.id,
     date: date ?? this.date,
     calories: calories ?? this.calories,
     protein: protein ?? this.protein,
     carbs: carbs ?? this.carbs,
+    foodName: foodName.present ? foodName.value : this.foodName,
   );
   NutritionLog copyWithCompanion(NutritionLogsCompanion data) {
     return NutritionLog(
@@ -2424,6 +2464,7 @@ class NutritionLog extends DataClass implements Insertable<NutritionLog> {
       calories: data.calories.present ? data.calories.value : this.calories,
       protein: data.protein.present ? data.protein.value : this.protein,
       carbs: data.carbs.present ? data.carbs.value : this.carbs,
+      foodName: data.foodName.present ? data.foodName.value : this.foodName,
     );
   }
 
@@ -2434,13 +2475,14 @@ class NutritionLog extends DataClass implements Insertable<NutritionLog> {
           ..write('date: $date, ')
           ..write('calories: $calories, ')
           ..write('protein: $protein, ')
-          ..write('carbs: $carbs')
+          ..write('carbs: $carbs, ')
+          ..write('foodName: $foodName')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, date, calories, protein, carbs);
+  int get hashCode => Object.hash(id, date, calories, protein, carbs, foodName);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2449,7 +2491,8 @@ class NutritionLog extends DataClass implements Insertable<NutritionLog> {
           other.date == this.date &&
           other.calories == this.calories &&
           other.protein == this.protein &&
-          other.carbs == this.carbs);
+          other.carbs == this.carbs &&
+          other.foodName == this.foodName);
 }
 
 class NutritionLogsCompanion extends UpdateCompanion<NutritionLog> {
@@ -2458,12 +2501,14 @@ class NutritionLogsCompanion extends UpdateCompanion<NutritionLog> {
   final Value<int> calories;
   final Value<int> protein;
   final Value<int> carbs;
+  final Value<String?> foodName;
   const NutritionLogsCompanion({
     this.id = const Value.absent(),
     this.date = const Value.absent(),
     this.calories = const Value.absent(),
     this.protein = const Value.absent(),
     this.carbs = const Value.absent(),
+    this.foodName = const Value.absent(),
   });
   NutritionLogsCompanion.insert({
     this.id = const Value.absent(),
@@ -2471,6 +2516,7 @@ class NutritionLogsCompanion extends UpdateCompanion<NutritionLog> {
     required int calories,
     required int protein,
     required int carbs,
+    this.foodName = const Value.absent(),
   }) : date = Value(date),
        calories = Value(calories),
        protein = Value(protein),
@@ -2481,6 +2527,7 @@ class NutritionLogsCompanion extends UpdateCompanion<NutritionLog> {
     Expression<int>? calories,
     Expression<int>? protein,
     Expression<int>? carbs,
+    Expression<String>? foodName,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2488,6 +2535,7 @@ class NutritionLogsCompanion extends UpdateCompanion<NutritionLog> {
       if (calories != null) 'calories': calories,
       if (protein != null) 'protein': protein,
       if (carbs != null) 'carbs': carbs,
+      if (foodName != null) 'food_name': foodName,
     });
   }
 
@@ -2497,6 +2545,7 @@ class NutritionLogsCompanion extends UpdateCompanion<NutritionLog> {
     Value<int>? calories,
     Value<int>? protein,
     Value<int>? carbs,
+    Value<String?>? foodName,
   }) {
     return NutritionLogsCompanion(
       id: id ?? this.id,
@@ -2504,6 +2553,7 @@ class NutritionLogsCompanion extends UpdateCompanion<NutritionLog> {
       calories: calories ?? this.calories,
       protein: protein ?? this.protein,
       carbs: carbs ?? this.carbs,
+      foodName: foodName ?? this.foodName,
     );
   }
 
@@ -2525,6 +2575,9 @@ class NutritionLogsCompanion extends UpdateCompanion<NutritionLog> {
     if (carbs.present) {
       map['carbs'] = Variable<int>(carbs.value);
     }
+    if (foodName.present) {
+      map['food_name'] = Variable<String>(foodName.value);
+    }
     return map;
   }
 
@@ -2535,7 +2588,525 @@ class NutritionLogsCompanion extends UpdateCompanion<NutritionLog> {
           ..write('date: $date, ')
           ..write('calories: $calories, ')
           ..write('protein: $protein, ')
-          ..write('carbs: $carbs')
+          ..write('carbs: $carbs, ')
+          ..write('foodName: $foodName')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FoodItemsTable extends FoodItems
+    with TableInfo<$FoodItemsTable, FoodItem> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FoodItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _barcodeMeta = const VerificationMeta(
+    'barcode',
+  );
+  @override
+  late final GeneratedColumn<String> barcode = GeneratedColumn<String>(
+    'barcode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _caloriesPer100gMeta = const VerificationMeta(
+    'caloriesPer100g',
+  );
+  @override
+  late final GeneratedColumn<double> caloriesPer100g = GeneratedColumn<double>(
+    'calories_per100g',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _proteinPer100gMeta = const VerificationMeta(
+    'proteinPer100g',
+  );
+  @override
+  late final GeneratedColumn<double> proteinPer100g = GeneratedColumn<double>(
+    'protein_per100g',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _carbsPer100gMeta = const VerificationMeta(
+    'carbsPer100g',
+  );
+  @override
+  late final GeneratedColumn<double> carbsPer100g = GeneratedColumn<double>(
+    'carbs_per100g',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastPortionMeta = const VerificationMeta(
+    'lastPortion',
+  );
+  @override
+  late final GeneratedColumn<double> lastPortion = GeneratedColumn<double>(
+    'last_portion',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(100.0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    barcode,
+    name,
+    caloriesPer100g,
+    proteinPer100g,
+    carbsPer100g,
+    lastPortion,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'food_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FoodItem> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('barcode')) {
+      context.handle(
+        _barcodeMeta,
+        barcode.isAcceptableOrUnknown(data['barcode']!, _barcodeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_barcodeMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('calories_per100g')) {
+      context.handle(
+        _caloriesPer100gMeta,
+        caloriesPer100g.isAcceptableOrUnknown(
+          data['calories_per100g']!,
+          _caloriesPer100gMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_caloriesPer100gMeta);
+    }
+    if (data.containsKey('protein_per100g')) {
+      context.handle(
+        _proteinPer100gMeta,
+        proteinPer100g.isAcceptableOrUnknown(
+          data['protein_per100g']!,
+          _proteinPer100gMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_proteinPer100gMeta);
+    }
+    if (data.containsKey('carbs_per100g')) {
+      context.handle(
+        _carbsPer100gMeta,
+        carbsPer100g.isAcceptableOrUnknown(
+          data['carbs_per100g']!,
+          _carbsPer100gMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_carbsPer100gMeta);
+    }
+    if (data.containsKey('last_portion')) {
+      context.handle(
+        _lastPortionMeta,
+        lastPortion.isAcceptableOrUnknown(
+          data['last_portion']!,
+          _lastPortionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  FoodItem map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FoodItem(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      barcode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}barcode'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      caloriesPer100g: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}calories_per100g'],
+      )!,
+      proteinPer100g: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}protein_per100g'],
+      )!,
+      carbsPer100g: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}carbs_per100g'],
+      )!,
+      lastPortion: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}last_portion'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $FoodItemsTable createAlias(String alias) {
+    return $FoodItemsTable(attachedDatabase, alias);
+  }
+}
+
+class FoodItem extends DataClass implements Insertable<FoodItem> {
+  final int id;
+  final String barcode;
+  final String name;
+  final double caloriesPer100g;
+  final double proteinPer100g;
+  final double carbsPer100g;
+  final double lastPortion;
+  final DateTime createdAt;
+  const FoodItem({
+    required this.id,
+    required this.barcode,
+    required this.name,
+    required this.caloriesPer100g,
+    required this.proteinPer100g,
+    required this.carbsPer100g,
+    required this.lastPortion,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['barcode'] = Variable<String>(barcode);
+    map['name'] = Variable<String>(name);
+    map['calories_per100g'] = Variable<double>(caloriesPer100g);
+    map['protein_per100g'] = Variable<double>(proteinPer100g);
+    map['carbs_per100g'] = Variable<double>(carbsPer100g);
+    map['last_portion'] = Variable<double>(lastPortion);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  FoodItemsCompanion toCompanion(bool nullToAbsent) {
+    return FoodItemsCompanion(
+      id: Value(id),
+      barcode: Value(barcode),
+      name: Value(name),
+      caloriesPer100g: Value(caloriesPer100g),
+      proteinPer100g: Value(proteinPer100g),
+      carbsPer100g: Value(carbsPer100g),
+      lastPortion: Value(lastPortion),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory FoodItem.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FoodItem(
+      id: serializer.fromJson<int>(json['id']),
+      barcode: serializer.fromJson<String>(json['barcode']),
+      name: serializer.fromJson<String>(json['name']),
+      caloriesPer100g: serializer.fromJson<double>(json['caloriesPer100g']),
+      proteinPer100g: serializer.fromJson<double>(json['proteinPer100g']),
+      carbsPer100g: serializer.fromJson<double>(json['carbsPer100g']),
+      lastPortion: serializer.fromJson<double>(json['lastPortion']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'barcode': serializer.toJson<String>(barcode),
+      'name': serializer.toJson<String>(name),
+      'caloriesPer100g': serializer.toJson<double>(caloriesPer100g),
+      'proteinPer100g': serializer.toJson<double>(proteinPer100g),
+      'carbsPer100g': serializer.toJson<double>(carbsPer100g),
+      'lastPortion': serializer.toJson<double>(lastPortion),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  FoodItem copyWith({
+    int? id,
+    String? barcode,
+    String? name,
+    double? caloriesPer100g,
+    double? proteinPer100g,
+    double? carbsPer100g,
+    double? lastPortion,
+    DateTime? createdAt,
+  }) => FoodItem(
+    id: id ?? this.id,
+    barcode: barcode ?? this.barcode,
+    name: name ?? this.name,
+    caloriesPer100g: caloriesPer100g ?? this.caloriesPer100g,
+    proteinPer100g: proteinPer100g ?? this.proteinPer100g,
+    carbsPer100g: carbsPer100g ?? this.carbsPer100g,
+    lastPortion: lastPortion ?? this.lastPortion,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  FoodItem copyWithCompanion(FoodItemsCompanion data) {
+    return FoodItem(
+      id: data.id.present ? data.id.value : this.id,
+      barcode: data.barcode.present ? data.barcode.value : this.barcode,
+      name: data.name.present ? data.name.value : this.name,
+      caloriesPer100g: data.caloriesPer100g.present
+          ? data.caloriesPer100g.value
+          : this.caloriesPer100g,
+      proteinPer100g: data.proteinPer100g.present
+          ? data.proteinPer100g.value
+          : this.proteinPer100g,
+      carbsPer100g: data.carbsPer100g.present
+          ? data.carbsPer100g.value
+          : this.carbsPer100g,
+      lastPortion: data.lastPortion.present
+          ? data.lastPortion.value
+          : this.lastPortion,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FoodItem(')
+          ..write('id: $id, ')
+          ..write('barcode: $barcode, ')
+          ..write('name: $name, ')
+          ..write('caloriesPer100g: $caloriesPer100g, ')
+          ..write('proteinPer100g: $proteinPer100g, ')
+          ..write('carbsPer100g: $carbsPer100g, ')
+          ..write('lastPortion: $lastPortion, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    barcode,
+    name,
+    caloriesPer100g,
+    proteinPer100g,
+    carbsPer100g,
+    lastPortion,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FoodItem &&
+          other.id == this.id &&
+          other.barcode == this.barcode &&
+          other.name == this.name &&
+          other.caloriesPer100g == this.caloriesPer100g &&
+          other.proteinPer100g == this.proteinPer100g &&
+          other.carbsPer100g == this.carbsPer100g &&
+          other.lastPortion == this.lastPortion &&
+          other.createdAt == this.createdAt);
+}
+
+class FoodItemsCompanion extends UpdateCompanion<FoodItem> {
+  final Value<int> id;
+  final Value<String> barcode;
+  final Value<String> name;
+  final Value<double> caloriesPer100g;
+  final Value<double> proteinPer100g;
+  final Value<double> carbsPer100g;
+  final Value<double> lastPortion;
+  final Value<DateTime> createdAt;
+  const FoodItemsCompanion({
+    this.id = const Value.absent(),
+    this.barcode = const Value.absent(),
+    this.name = const Value.absent(),
+    this.caloriesPer100g = const Value.absent(),
+    this.proteinPer100g = const Value.absent(),
+    this.carbsPer100g = const Value.absent(),
+    this.lastPortion = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  FoodItemsCompanion.insert({
+    this.id = const Value.absent(),
+    required String barcode,
+    required String name,
+    required double caloriesPer100g,
+    required double proteinPer100g,
+    required double carbsPer100g,
+    this.lastPortion = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : barcode = Value(barcode),
+       name = Value(name),
+       caloriesPer100g = Value(caloriesPer100g),
+       proteinPer100g = Value(proteinPer100g),
+       carbsPer100g = Value(carbsPer100g);
+  static Insertable<FoodItem> custom({
+    Expression<int>? id,
+    Expression<String>? barcode,
+    Expression<String>? name,
+    Expression<double>? caloriesPer100g,
+    Expression<double>? proteinPer100g,
+    Expression<double>? carbsPer100g,
+    Expression<double>? lastPortion,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (barcode != null) 'barcode': barcode,
+      if (name != null) 'name': name,
+      if (caloriesPer100g != null) 'calories_per100g': caloriesPer100g,
+      if (proteinPer100g != null) 'protein_per100g': proteinPer100g,
+      if (carbsPer100g != null) 'carbs_per100g': carbsPer100g,
+      if (lastPortion != null) 'last_portion': lastPortion,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  FoodItemsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? barcode,
+    Value<String>? name,
+    Value<double>? caloriesPer100g,
+    Value<double>? proteinPer100g,
+    Value<double>? carbsPer100g,
+    Value<double>? lastPortion,
+    Value<DateTime>? createdAt,
+  }) {
+    return FoodItemsCompanion(
+      id: id ?? this.id,
+      barcode: barcode ?? this.barcode,
+      name: name ?? this.name,
+      caloriesPer100g: caloriesPer100g ?? this.caloriesPer100g,
+      proteinPer100g: proteinPer100g ?? this.proteinPer100g,
+      carbsPer100g: carbsPer100g ?? this.carbsPer100g,
+      lastPortion: lastPortion ?? this.lastPortion,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (barcode.present) {
+      map['barcode'] = Variable<String>(barcode.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (caloriesPer100g.present) {
+      map['calories_per100g'] = Variable<double>(caloriesPer100g.value);
+    }
+    if (proteinPer100g.present) {
+      map['protein_per100g'] = Variable<double>(proteinPer100g.value);
+    }
+    if (carbsPer100g.present) {
+      map['carbs_per100g'] = Variable<double>(carbsPer100g.value);
+    }
+    if (lastPortion.present) {
+      map['last_portion'] = Variable<double>(lastPortion.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FoodItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('barcode: $barcode, ')
+          ..write('name: $name, ')
+          ..write('caloriesPer100g: $caloriesPer100g, ')
+          ..write('proteinPer100g: $proteinPer100g, ')
+          ..write('carbsPer100g: $carbsPer100g, ')
+          ..write('lastPortion: $lastPortion, ')
+          ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
@@ -3191,6 +3762,17 @@ class $StorageFilesTable extends StorageFiles
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _thumbnailPathMeta = const VerificationMeta(
+    'thumbnailPath',
+  );
+  @override
+  late final GeneratedColumn<String> thumbnailPath = GeneratedColumn<String>(
+    'thumbnail_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _folderIdMeta = const VerificationMeta(
     'folderId',
   );
@@ -3223,6 +3805,7 @@ class $StorageFilesTable extends StorageFiles
     name,
     path,
     type,
+    thumbnailPath,
     folderId,
     createdAt,
   ];
@@ -3265,6 +3848,15 @@ class $StorageFilesTable extends StorageFiles
     } else if (isInserting) {
       context.missing(_typeMeta);
     }
+    if (data.containsKey('thumbnail_path')) {
+      context.handle(
+        _thumbnailPathMeta,
+        thumbnailPath.isAcceptableOrUnknown(
+          data['thumbnail_path']!,
+          _thumbnailPathMeta,
+        ),
+      );
+    }
     if (data.containsKey('folder_id')) {
       context.handle(
         _folderIdMeta,
@@ -3302,6 +3894,10 @@ class $StorageFilesTable extends StorageFiles
         DriftSqlType.string,
         data['${effectivePrefix}type'],
       )!,
+      thumbnailPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}thumbnail_path'],
+      ),
       folderId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}folder_id'],
@@ -3324,6 +3920,7 @@ class StorageFile extends DataClass implements Insertable<StorageFile> {
   final String name;
   final String path;
   final String type;
+  final String? thumbnailPath;
   final int? folderId;
   final DateTime createdAt;
   const StorageFile({
@@ -3331,6 +3928,7 @@ class StorageFile extends DataClass implements Insertable<StorageFile> {
     required this.name,
     required this.path,
     required this.type,
+    this.thumbnailPath,
     this.folderId,
     required this.createdAt,
   });
@@ -3341,6 +3939,9 @@ class StorageFile extends DataClass implements Insertable<StorageFile> {
     map['name'] = Variable<String>(name);
     map['path'] = Variable<String>(path);
     map['type'] = Variable<String>(type);
+    if (!nullToAbsent || thumbnailPath != null) {
+      map['thumbnail_path'] = Variable<String>(thumbnailPath);
+    }
     if (!nullToAbsent || folderId != null) {
       map['folder_id'] = Variable<int>(folderId);
     }
@@ -3354,6 +3955,9 @@ class StorageFile extends DataClass implements Insertable<StorageFile> {
       name: Value(name),
       path: Value(path),
       type: Value(type),
+      thumbnailPath: thumbnailPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(thumbnailPath),
       folderId: folderId == null && nullToAbsent
           ? const Value.absent()
           : Value(folderId),
@@ -3371,6 +3975,7 @@ class StorageFile extends DataClass implements Insertable<StorageFile> {
       name: serializer.fromJson<String>(json['name']),
       path: serializer.fromJson<String>(json['path']),
       type: serializer.fromJson<String>(json['type']),
+      thumbnailPath: serializer.fromJson<String?>(json['thumbnailPath']),
       folderId: serializer.fromJson<int?>(json['folderId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -3383,6 +3988,7 @@ class StorageFile extends DataClass implements Insertable<StorageFile> {
       'name': serializer.toJson<String>(name),
       'path': serializer.toJson<String>(path),
       'type': serializer.toJson<String>(type),
+      'thumbnailPath': serializer.toJson<String?>(thumbnailPath),
       'folderId': serializer.toJson<int?>(folderId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -3393,6 +3999,7 @@ class StorageFile extends DataClass implements Insertable<StorageFile> {
     String? name,
     String? path,
     String? type,
+    Value<String?> thumbnailPath = const Value.absent(),
     Value<int?> folderId = const Value.absent(),
     DateTime? createdAt,
   }) => StorageFile(
@@ -3400,6 +4007,9 @@ class StorageFile extends DataClass implements Insertable<StorageFile> {
     name: name ?? this.name,
     path: path ?? this.path,
     type: type ?? this.type,
+    thumbnailPath: thumbnailPath.present
+        ? thumbnailPath.value
+        : this.thumbnailPath,
     folderId: folderId.present ? folderId.value : this.folderId,
     createdAt: createdAt ?? this.createdAt,
   );
@@ -3409,6 +4019,9 @@ class StorageFile extends DataClass implements Insertable<StorageFile> {
       name: data.name.present ? data.name.value : this.name,
       path: data.path.present ? data.path.value : this.path,
       type: data.type.present ? data.type.value : this.type,
+      thumbnailPath: data.thumbnailPath.present
+          ? data.thumbnailPath.value
+          : this.thumbnailPath,
       folderId: data.folderId.present ? data.folderId.value : this.folderId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -3421,6 +4034,7 @@ class StorageFile extends DataClass implements Insertable<StorageFile> {
           ..write('name: $name, ')
           ..write('path: $path, ')
           ..write('type: $type, ')
+          ..write('thumbnailPath: $thumbnailPath, ')
           ..write('folderId: $folderId, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -3428,7 +4042,8 @@ class StorageFile extends DataClass implements Insertable<StorageFile> {
   }
 
   @override
-  int get hashCode => Object.hash(id, name, path, type, folderId, createdAt);
+  int get hashCode =>
+      Object.hash(id, name, path, type, thumbnailPath, folderId, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3437,6 +4052,7 @@ class StorageFile extends DataClass implements Insertable<StorageFile> {
           other.name == this.name &&
           other.path == this.path &&
           other.type == this.type &&
+          other.thumbnailPath == this.thumbnailPath &&
           other.folderId == this.folderId &&
           other.createdAt == this.createdAt);
 }
@@ -3446,6 +4062,7 @@ class StorageFilesCompanion extends UpdateCompanion<StorageFile> {
   final Value<String> name;
   final Value<String> path;
   final Value<String> type;
+  final Value<String?> thumbnailPath;
   final Value<int?> folderId;
   final Value<DateTime> createdAt;
   const StorageFilesCompanion({
@@ -3453,6 +4070,7 @@ class StorageFilesCompanion extends UpdateCompanion<StorageFile> {
     this.name = const Value.absent(),
     this.path = const Value.absent(),
     this.type = const Value.absent(),
+    this.thumbnailPath = const Value.absent(),
     this.folderId = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
@@ -3461,6 +4079,7 @@ class StorageFilesCompanion extends UpdateCompanion<StorageFile> {
     required String name,
     required String path,
     required String type,
+    this.thumbnailPath = const Value.absent(),
     this.folderId = const Value.absent(),
     this.createdAt = const Value.absent(),
   }) : name = Value(name),
@@ -3471,6 +4090,7 @@ class StorageFilesCompanion extends UpdateCompanion<StorageFile> {
     Expression<String>? name,
     Expression<String>? path,
     Expression<String>? type,
+    Expression<String>? thumbnailPath,
     Expression<int>? folderId,
     Expression<DateTime>? createdAt,
   }) {
@@ -3479,6 +4099,7 @@ class StorageFilesCompanion extends UpdateCompanion<StorageFile> {
       if (name != null) 'name': name,
       if (path != null) 'path': path,
       if (type != null) 'type': type,
+      if (thumbnailPath != null) 'thumbnail_path': thumbnailPath,
       if (folderId != null) 'folder_id': folderId,
       if (createdAt != null) 'created_at': createdAt,
     });
@@ -3489,6 +4110,7 @@ class StorageFilesCompanion extends UpdateCompanion<StorageFile> {
     Value<String>? name,
     Value<String>? path,
     Value<String>? type,
+    Value<String?>? thumbnailPath,
     Value<int?>? folderId,
     Value<DateTime>? createdAt,
   }) {
@@ -3497,6 +4119,7 @@ class StorageFilesCompanion extends UpdateCompanion<StorageFile> {
       name: name ?? this.name,
       path: path ?? this.path,
       type: type ?? this.type,
+      thumbnailPath: thumbnailPath ?? this.thumbnailPath,
       folderId: folderId ?? this.folderId,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -3517,6 +4140,9 @@ class StorageFilesCompanion extends UpdateCompanion<StorageFile> {
     if (type.present) {
       map['type'] = Variable<String>(type.value);
     }
+    if (thumbnailPath.present) {
+      map['thumbnail_path'] = Variable<String>(thumbnailPath.value);
+    }
     if (folderId.present) {
       map['folder_id'] = Variable<int>(folderId.value);
     }
@@ -3533,6 +4159,7 @@ class StorageFilesCompanion extends UpdateCompanion<StorageFile> {
           ..write('name: $name, ')
           ..write('path: $path, ')
           ..write('type: $type, ')
+          ..write('thumbnailPath: $thumbnailPath, ')
           ..write('folderId: $folderId, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -3849,6 +4476,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $GymLogsTable gymLogs = $GymLogsTable(this);
   late final $WeightLogsTable weightLogs = $WeightLogsTable(this);
   late final $NutritionLogsTable nutritionLogs = $NutritionLogsTable(this);
+  late final $FoodItemsTable foodItems = $FoodItemsTable(this);
   late final $UserGoalsTable userGoals = $UserGoalsTable(this);
   late final $StorageFoldersTable storageFolders = $StorageFoldersTable(this);
   late final $StorageFilesTable storageFiles = $StorageFilesTable(this);
@@ -3865,6 +4493,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     gymLogs,
     weightLogs,
     nutritionLogs,
+    foodItems,
     userGoals,
     storageFolders,
     storageFiles,
@@ -5773,6 +6402,7 @@ typedef $$NutritionLogsTableCreateCompanionBuilder =
       required int calories,
       required int protein,
       required int carbs,
+      Value<String?> foodName,
     });
 typedef $$NutritionLogsTableUpdateCompanionBuilder =
     NutritionLogsCompanion Function({
@@ -5781,6 +6411,7 @@ typedef $$NutritionLogsTableUpdateCompanionBuilder =
       Value<int> calories,
       Value<int> protein,
       Value<int> carbs,
+      Value<String?> foodName,
     });
 
 class $$NutritionLogsTableFilterComposer
@@ -5814,6 +6445,11 @@ class $$NutritionLogsTableFilterComposer
 
   ColumnFilters<int> get carbs => $composableBuilder(
     column: $table.carbs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get foodName => $composableBuilder(
+    column: $table.foodName,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5851,6 +6487,11 @@ class $$NutritionLogsTableOrderingComposer
     column: $table.carbs,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get foodName => $composableBuilder(
+    column: $table.foodName,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$NutritionLogsTableAnnotationComposer
@@ -5876,6 +6517,9 @@ class $$NutritionLogsTableAnnotationComposer
 
   GeneratedColumn<int> get carbs =>
       $composableBuilder(column: $table.carbs, builder: (column) => column);
+
+  GeneratedColumn<String> get foodName =>
+      $composableBuilder(column: $table.foodName, builder: (column) => column);
 }
 
 class $$NutritionLogsTableTableManager
@@ -5914,12 +6558,14 @@ class $$NutritionLogsTableTableManager
                 Value<int> calories = const Value.absent(),
                 Value<int> protein = const Value.absent(),
                 Value<int> carbs = const Value.absent(),
+                Value<String?> foodName = const Value.absent(),
               }) => NutritionLogsCompanion(
                 id: id,
                 date: date,
                 calories: calories,
                 protein: protein,
                 carbs: carbs,
+                foodName: foodName,
               ),
           createCompanionCallback:
               ({
@@ -5928,12 +6574,14 @@ class $$NutritionLogsTableTableManager
                 required int calories,
                 required int protein,
                 required int carbs,
+                Value<String?> foodName = const Value.absent(),
               }) => NutritionLogsCompanion.insert(
                 id: id,
                 date: date,
                 calories: calories,
                 protein: protein,
                 carbs: carbs,
+                foodName: foodName,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -5958,6 +6606,259 @@ typedef $$NutritionLogsTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $NutritionLogsTable, NutritionLog>,
       ),
       NutritionLog,
+      PrefetchHooks Function()
+    >;
+typedef $$FoodItemsTableCreateCompanionBuilder =
+    FoodItemsCompanion Function({
+      Value<int> id,
+      required String barcode,
+      required String name,
+      required double caloriesPer100g,
+      required double proteinPer100g,
+      required double carbsPer100g,
+      Value<double> lastPortion,
+      Value<DateTime> createdAt,
+    });
+typedef $$FoodItemsTableUpdateCompanionBuilder =
+    FoodItemsCompanion Function({
+      Value<int> id,
+      Value<String> barcode,
+      Value<String> name,
+      Value<double> caloriesPer100g,
+      Value<double> proteinPer100g,
+      Value<double> carbsPer100g,
+      Value<double> lastPortion,
+      Value<DateTime> createdAt,
+    });
+
+class $$FoodItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $FoodItemsTable> {
+  $$FoodItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get barcode => $composableBuilder(
+    column: $table.barcode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get caloriesPer100g => $composableBuilder(
+    column: $table.caloriesPer100g,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get proteinPer100g => $composableBuilder(
+    column: $table.proteinPer100g,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get carbsPer100g => $composableBuilder(
+    column: $table.carbsPer100g,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get lastPortion => $composableBuilder(
+    column: $table.lastPortion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$FoodItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $FoodItemsTable> {
+  $$FoodItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get barcode => $composableBuilder(
+    column: $table.barcode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get caloriesPer100g => $composableBuilder(
+    column: $table.caloriesPer100g,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get proteinPer100g => $composableBuilder(
+    column: $table.proteinPer100g,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get carbsPer100g => $composableBuilder(
+    column: $table.carbsPer100g,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get lastPortion => $composableBuilder(
+    column: $table.lastPortion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FoodItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $FoodItemsTable> {
+  $$FoodItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get barcode =>
+      $composableBuilder(column: $table.barcode, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<double> get caloriesPer100g => $composableBuilder(
+    column: $table.caloriesPer100g,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get proteinPer100g => $composableBuilder(
+    column: $table.proteinPer100g,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get carbsPer100g => $composableBuilder(
+    column: $table.carbsPer100g,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get lastPortion => $composableBuilder(
+    column: $table.lastPortion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$FoodItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $FoodItemsTable,
+          FoodItem,
+          $$FoodItemsTableFilterComposer,
+          $$FoodItemsTableOrderingComposer,
+          $$FoodItemsTableAnnotationComposer,
+          $$FoodItemsTableCreateCompanionBuilder,
+          $$FoodItemsTableUpdateCompanionBuilder,
+          (FoodItem, BaseReferences<_$AppDatabase, $FoodItemsTable, FoodItem>),
+          FoodItem,
+          PrefetchHooks Function()
+        > {
+  $$FoodItemsTableTableManager(_$AppDatabase db, $FoodItemsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FoodItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FoodItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FoodItemsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> barcode = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<double> caloriesPer100g = const Value.absent(),
+                Value<double> proteinPer100g = const Value.absent(),
+                Value<double> carbsPer100g = const Value.absent(),
+                Value<double> lastPortion = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => FoodItemsCompanion(
+                id: id,
+                barcode: barcode,
+                name: name,
+                caloriesPer100g: caloriesPer100g,
+                proteinPer100g: proteinPer100g,
+                carbsPer100g: carbsPer100g,
+                lastPortion: lastPortion,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String barcode,
+                required String name,
+                required double caloriesPer100g,
+                required double proteinPer100g,
+                required double carbsPer100g,
+                Value<double> lastPortion = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => FoodItemsCompanion.insert(
+                id: id,
+                barcode: barcode,
+                name: name,
+                caloriesPer100g: caloriesPer100g,
+                proteinPer100g: proteinPer100g,
+                carbsPer100g: carbsPer100g,
+                lastPortion: lastPortion,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$FoodItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $FoodItemsTable,
+      FoodItem,
+      $$FoodItemsTableFilterComposer,
+      $$FoodItemsTableOrderingComposer,
+      $$FoodItemsTableAnnotationComposer,
+      $$FoodItemsTableCreateCompanionBuilder,
+      $$FoodItemsTableUpdateCompanionBuilder,
+      (FoodItem, BaseReferences<_$AppDatabase, $FoodItemsTable, FoodItem>),
+      FoodItem,
       PrefetchHooks Function()
     >;
 typedef $$UserGoalsTableCreateCompanionBuilder =
@@ -6535,6 +7436,7 @@ typedef $$StorageFilesTableCreateCompanionBuilder =
       required String name,
       required String path,
       required String type,
+      Value<String?> thumbnailPath,
       Value<int?> folderId,
       Value<DateTime> createdAt,
     });
@@ -6544,6 +7446,7 @@ typedef $$StorageFilesTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String> path,
       Value<String> type,
+      Value<String?> thumbnailPath,
       Value<int?> folderId,
       Value<DateTime> createdAt,
     });
@@ -6616,6 +7519,11 @@ class $$StorageFilesTableFilterComposer
 
   ColumnFilters<String> get type => $composableBuilder(
     column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get thumbnailPath => $composableBuilder(
+    column: $table.thumbnailPath,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6702,6 +7610,11 @@ class $$StorageFilesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get thumbnailPath => $composableBuilder(
+    column: $table.thumbnailPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -6751,6 +7664,11 @@ class $$StorageFilesTableAnnotationComposer
 
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get thumbnailPath => $composableBuilder(
+    column: $table.thumbnailPath,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -6836,6 +7754,7 @@ class $$StorageFilesTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> path = const Value.absent(),
                 Value<String> type = const Value.absent(),
+                Value<String?> thumbnailPath = const Value.absent(),
                 Value<int?> folderId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => StorageFilesCompanion(
@@ -6843,6 +7762,7 @@ class $$StorageFilesTableTableManager
                 name: name,
                 path: path,
                 type: type,
+                thumbnailPath: thumbnailPath,
                 folderId: folderId,
                 createdAt: createdAt,
               ),
@@ -6852,6 +7772,7 @@ class $$StorageFilesTableTableManager
                 required String name,
                 required String path,
                 required String type,
+                Value<String?> thumbnailPath = const Value.absent(),
                 Value<int?> folderId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => StorageFilesCompanion.insert(
@@ -6859,6 +7780,7 @@ class $$StorageFilesTableTableManager
                 name: name,
                 path: path,
                 type: type,
+                thumbnailPath: thumbnailPath,
                 folderId: folderId,
                 createdAt: createdAt,
               ),
@@ -7268,6 +8190,8 @@ class $AppDatabaseManager {
       $$WeightLogsTableTableManager(_db, _db.weightLogs);
   $$NutritionLogsTableTableManager get nutritionLogs =>
       $$NutritionLogsTableTableManager(_db, _db.nutritionLogs);
+  $$FoodItemsTableTableManager get foodItems =>
+      $$FoodItemsTableTableManager(_db, _db.foodItems);
   $$UserGoalsTableTableManager get userGoals =>
       $$UserGoalsTableTableManager(_db, _db.userGoals);
   $$StorageFoldersTableTableManager get storageFolders =>
