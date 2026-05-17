@@ -71,7 +71,7 @@ class DashboardScreen extends StatelessWidget {
                                 if (provider.urgentTasks.isEmpty)
                                   Card(
                                     color: const Color(0xFF252525),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: Colors.white.withOpacity(0.05))),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
                                     child: const Padding(padding: EdgeInsets.all(20), child: Center(child: Text("All caught up!", style: TextStyle(color: Colors.grey)))),
                                   )
                                 else
@@ -137,7 +137,7 @@ class DashboardScreen extends StatelessWidget {
                           if (provider.urgentTasks.isEmpty)
                             Card(
                               color: const Color(0xFF252525),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: Colors.white.withOpacity(0.05))),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
                               child: const Padding(padding: EdgeInsets.all(20), child: Center(child: Text("All caught up!", style: TextStyle(color: Colors.grey)))),
                             )
                           else
@@ -188,7 +188,7 @@ class DashboardScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF252525),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
@@ -261,7 +261,7 @@ class DashboardScreen extends StatelessWidget {
 
     return Card(
       color: const Color(0xFF252525),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: Colors.white.withOpacity(0.05))),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: LayoutBuilder(
@@ -304,7 +304,7 @@ class DashboardScreen extends StatelessWidget {
 
     return Card(
       color: const Color(0xFF252525),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: Colors.white.withOpacity(0.05))),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: LineChart(

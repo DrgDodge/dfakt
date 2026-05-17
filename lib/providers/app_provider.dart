@@ -4,6 +4,7 @@ import '../database/database.dart';
 import 'package:collection/collection.dart';
 import '../services/widget_service.dart';
 import 'dart:io';
+import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:archive/archive.dart';
@@ -597,7 +598,13 @@ class AppProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  bool _authLoaded = false;
+
   Future<void> loadData() async {
+    if (!_authLoaded) {
+      await _loadStoredAuth();
+      _authLoaded = true;
+    }
     await _loadCategories();
     await _loadGymLogs();
     await _loadWeightLogs();
@@ -607,15 +614,50 @@ class AppProvider with ChangeNotifier {
     // Auto-delete 'Pushups' placeholder if it exists (User request)
     final pushups = _exercises.firstWhereOrNull((e) => e.name == 'Pushups');
     if (pushups != null) {
-      // Check if it has logs first? Or just delete. 
-      // User said "no workout exists" implying logs are empty or they just want it gone.
-      // deleteExercise deletes logs too via cascade or manual logic.
       await deleteExercise(pushups.id); 
     }
 
     await _loadUserGoal();
     await _updateWidgets();
     notifyListeners();
+  }
+
+  Future<void> _loadStoredAuth() async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final authFile = File(p.join(appDir.path, 'pb_auth.json'));
+      
+      if (await authFile.exists()) {
+        final content = await authFile.readAsString();
+        final data = jsonDecode(content);
+        if (data['token'] != null) {
+          pb.authStore.save(data['token'], data['record']);
+        }
+      }
+    } catch (e) {
+      print("Error loading stored auth: $e");
+    }
+
+    // Listen for changes to save them
+    pb.authStore.onChange.listen((event) async {
+      try {
+        final appDir = await getApplicationDocumentsDirectory();
+        final authFile = File(p.join(appDir.path, 'pb_auth.json'));
+        if (pb.authStore.isValid) {
+          final data = {
+            'token': pb.authStore.token,
+            'record': pb.authStore.record,
+          };
+          await authFile.writeAsString(jsonEncode(data));
+        } else {
+          if (await authFile.exists()) {
+            await authFile.delete();
+          }
+        }
+      } catch (e) {
+        print("Error saving auth: $e");
+      }
+    });
   }
 
 

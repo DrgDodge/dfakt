@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import 'package:bonsoir/bonsoir.dart';
-import 'package:bonsoir_platform_interface/bonsoir_platform_interface.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
@@ -129,8 +128,6 @@ class SyncService extends ChangeNotifier {
         final zipEncoder = ZipEncoder();
         final encodedZip = zipEncoder.encode(archive);
 
-        if (encodedZip == null) return Response.internalServerError(body: "Failed to zip");
-
         return Response.ok(encodedZip, headers: {
              'Content-Type': 'application/zip',
              'Content-Disposition': 'attachment; filename="dragonfakt_backup.zip"'
@@ -225,7 +222,7 @@ class SyncService extends ChangeNotifier {
       
       _discovery!.eventStream!.listen((event) {
         if (event is BonsoirDiscoveryServiceFoundEvent) {
-           event.service!.resolve(_discovery!.serviceResolver);
+           event.service.resolve(_discovery!.serviceResolver);
         } else if (event is BonsoirDiscoveryServiceResolvedEvent) {
            final service = event.service as dynamic;
            final attributes = service.attributes ?? {};
@@ -249,10 +246,8 @@ class SyncService extends ChangeNotifier {
            }
         } else if (event is BonsoirDiscoveryServiceLostEvent) {
            final service = event.service;
-           if (service != null) {
-             _devices.removeWhere((d) => d.id == service.name);
-             notifyListeners();
-           }
+           _devices.removeWhere((d) => d.id == service.name);
+           notifyListeners();
         }
       });
 
@@ -267,7 +262,7 @@ class SyncService extends ChangeNotifier {
 
   Future<void> stopDiscovery() async {
     if (_discovery != null) {
-      await _discovery!.stop();
+      await _discovery?.stop();
       _discovery = null;
     }
     _isDiscovering = false;
