@@ -83,12 +83,59 @@ class GeneralSettingsTab extends StatelessWidget {
         const SizedBox(height: 20),
         _buildSectionHeader("Sync"),
         Card(
-          child: ListTile(
-            leading: const Icon(Icons.sync, color: Color(0xFF80CBC4)),
-            title: const Text("Device Sync"),
-            subtitle: const Text("Sync data with other devices on local network"),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SyncScreen())),
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.sync, color: Color(0xFF80CBC4)),
+                title: const Text("Device Sync"),
+                subtitle: const Text("Sync data with other devices on local network"),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SyncScreen())),
+              ),
+              const Divider(height: 1, indent: 16, endIndent: 16),
+              if (provider.isPbLoggedIn) ...[
+                ListTile(
+                  leading: const Icon(Icons.cloud_done, color: Color(0xFF80CBC4)),
+                  title: const Text("Cloud Sync"),
+                  subtitle: Text("Logged in as ${provider.pbUserEmail ?? 'Unknown'}"),
+                  trailing: ElevatedButton(
+                    onPressed: () async {
+                      try {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Syncing...')));
+                        await provider.syncToCloud();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sync complete!')));
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sync failed: $e')));
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF80CBC4),
+                      foregroundColor: Colors.black,
+                    ),
+                    child: const Text("Sync Now"),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.logout, color: Colors.redAccent),
+                  title: const Text("Logout"),
+                  onTap: () {
+                    provider.logoutPb();
+                  },
+                ),
+              ] else ...[
+                ListTile(
+                  leading: const Icon(Icons.cloud_off, color: Colors.grey),
+                  title: const Text("Cloud Sync Login"),
+                  subtitle: const Text("Login to sync with PocketBase"),
+                  trailing: const Icon(Icons.login, size: 16),
+                  onTap: () => _showPbLoginDialog(context, provider),
+                ),
+              ],
+            ],
           ),
         ),
       ],
@@ -151,6 +198,47 @@ class GeneralSettingsTab extends StatelessWidget {
           }
         },
         saveText: "Save",
+      )
+    );
+  }
+
+  void _showPbLoginDialog(BuildContext context, AppProvider provider) {
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    
+    showDialog(
+      context: context, 
+      builder: (ctx) => StyledDialog(
+        title: "PocketBase Login",
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: emailController,
+              decoration: const InputDecoration(labelText: "Email"),
+              keyboardType: TextInputType.emailAddress,
+            ),
+            TextField(
+              controller: passwordController,
+              decoration: const InputDecoration(labelText: "Password"),
+              obscureText: true,
+            ),
+          ],
+        ),
+        onCancel: () => Navigator.pop(ctx),
+        onSave: () async {
+          if (emailController.text.isNotEmpty && passwordController.text.isNotEmpty) {
+            try {
+              await provider.loginPb(emailController.text, passwordController.text);
+              if (ctx.mounted) Navigator.pop(ctx);
+            } catch (e) {
+              if (ctx.mounted) {
+                ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text("Login failed: $e")));
+              }
+            }
+          }
+        },
+        saveText: "Login",
       )
     );
   }

@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:archive/archive.dart';
 import 'package:image/image.dart' as img;
 import 'package:pdfx/pdfx.dart';
+import 'package:pocketbase/pocketbase.dart';
 
 // UI Helpers to map Database classes to UI needs
 class ReminderWithSubs {
@@ -25,6 +26,7 @@ class CategoryWithReminders {
 
 class AppProvider with ChangeNotifier {
   AppDatabase _db = AppDatabase();
+  final pb = PocketBase('https://api.sinulzyn.com');
 
   List<CategoryWithReminders> _categories = [];
   List<GymLogWithExercise> _gymLogs = [];
@@ -635,6 +637,125 @@ class AppProvider with ChangeNotifier {
     await _db.setUserName(name);
     _userName = name;
     notifyListeners();
+  }
+
+  // --- PocketBase Sync & Auth ---
+
+  bool get isPbLoggedIn => pb.authStore.isValid;
+  
+  String? get pbUserEmail {
+    final record = pb.authStore.record;
+    if (record != null) {
+      return record.getStringValue('email');
+    }
+    return null;
+  }
+
+  Future<void> loginPb(String email, String password) async {
+    await pb.collection('users').authWithPassword(email, password);
+    notifyListeners();
+  }
+
+  Future<void> logoutPb() async {
+    pb.authStore.clear();
+    notifyListeners();
+  }
+
+  bool _isSameDate(String pbDate, DateTime localDate) {
+    try {
+      final pd = DateTime.parse(pbDate).toUtc();
+      final ld = localDate.toUtc();
+      return pd.year == ld.year && pd.month == ld.month && pd.day == ld.day && 
+             pd.hour == ld.hour && pd.minute == ld.minute && pd.second == ld.second;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<void> syncToCloud() async {
+    if (!isPbLoggedIn) return;
+    
+    final record = pb.authStore.record;
+    if (record == null) return;
+    final userId = record.id;
+
+    // Fetch existing logs to prevent duplicates/allow updates
+    final records = await pb.collection('fitness_logs').getFullList(
+      filter: 'user = "$userId"',
+    );
+
+    // Sync Gym logs
+    final gymLogs = await _db.getGymLogs();
+    for (var gl in gymLogs) {
+      final existing = records.where((r) => 
+        r.getStringValue('type') == 'gym' && 
+        _isSameDate(r.getStringValue('date'), gl.log.date) &&
+        r.getStringValue('exercise_name') == gl.exercise.name
+      ).firstOrNull;
+
+      final body = {
+        'user': userId,
+        'type': 'gym',
+        'date': gl.log.date.toUtc().toIso8601String(),
+        'exercise_name': gl.exercise.name,
+        'weight': gl.log.weight,
+        'reps': gl.log.reps,
+        'sets': gl.log.sets,
+      };
+
+      if (existing != null) {
+        await pb.collection('fitness_logs').update(existing.id, body: body);
+      } else {
+        await pb.collection('fitness_logs').create(body: body);
+      }
+    }
+
+    // Sync Weight logs
+    final weightLogs = await _db.getAllWeightLogs();
+    for (var wl in weightLogs) {
+      final existing = records.where((r) => 
+        r.getStringValue('type') == 'weight' && 
+        _isSameDate(r.getStringValue('date'), wl.date)
+      ).firstOrNull;
+
+      final body = {
+        'user': userId,
+        'type': 'weight',
+        'date': wl.date.toUtc().toIso8601String(),
+        'weight': wl.weight,
+        'body_fat': wl.bodyFat ?? 0.0,
+      };
+
+      if (existing != null) {
+        await pb.collection('fitness_logs').update(existing.id, body: body);
+      } else {
+        await pb.collection('fitness_logs').create(body: body);
+      }
+    }
+
+    // Sync Nutrition logs
+    final nutritionLogs = await _db.getAllNutritionLogs();
+    for (var nl in nutritionLogs) {
+      final existing = records.where((r) => 
+        r.getStringValue('type') == 'nutrition' && 
+        _isSameDate(r.getStringValue('date'), nl.date)
+      ).firstOrNull;
+
+      final body = {
+        'user': userId,
+        'type': 'nutrition',
+        'date': nl.date.toUtc().toIso8601String(),
+        'calories': nl.calories,
+        'protein': nl.protein,
+        'carbs': nl.carbs,
+      };
+
+      if (existing != null) {
+        await pb.collection('fitness_logs').update(existing.id, body: body);
+      } else {
+        await pb.collection('fitness_logs').create(body: body);
+      }
+    }
   }
 
   // --- Categories & Reminders ---
